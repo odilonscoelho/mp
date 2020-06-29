@@ -1,0 +1,71 @@
+#!/bin/zsh
+#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
+plistyad ()
+{
+  # declare -x url="null"
+  baseplyad
+  tail -f --lines=2000 \
+  --sleep-interval=1 /tmp/plistyad \
+  |yad --list \
+  --title="Playlist MPV" \
+  --grid-lines=vert \
+  --grid-lines=hor \
+  --geometry=300x400 \
+  --columns 2 \
+  --column=COD --column=Title:TEXT \
+  --no-buttons --tail \
+  --search-column=2 \
+  --mouse \
+  --grid-horizontal \
+  --grid-vertical \
+  --regex-search \
+  --selectable-labels \
+  --select-action="mp indice.selected %s" \
+  --dclick-action="mp trackgo"
+
+  exit 0
+}
+#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
+controls ()
+{
+  sock
+  yad \
+  --geometry 300x50 \
+  --borders 0 \
+  --form --columns 10 \
+  --title="Controls MPV" \
+  --field="":FBTN "mp" \
+  --field="":FBTN "mp plistyad" \
+  --field="":FBTN "mp select.file" \
+  --field="":FBTN "mp remove $(<$selcod)" \
+  --field="  ":FBTN "mp save" \
+  --field="  ":FBTN "mp stop" \
+  --field="    ":FBTN "mp prev" \
+  --field="|":FBTN "mp pause.toggle" \
+  --field="    ":FBTN "mp next" \
+  --no-buttons
+  # --button="":0 
+}
+#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
+# Para Terminal
+plist ()
+{
+  sock
+  basepl "$@"
+  text=$(tput setaf 7; tput setab 0;)
+  rev=$(tput rev;)
+  res=$(tput sgr0;)
+  bold=$(tput bold;)
+  i=1
+  while read line; do
+    if [[ "$i" -eq "$(trackget)" ]]; then
+      echo "$rev $bold|   $(printf '%6s' $i) | $(printf '%-50s' $line|tail -c 50) $res"   
+    else
+      echo "$text $bold|  $(printf '%8s' $i) | $(printf '%-50s' $line|tail -c 50) "
+    fi
+    i=$(( $i + 1 ))
+  done < /tmp/mptitles
+}
+#爛

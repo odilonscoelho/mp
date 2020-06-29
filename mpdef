@@ -1,0 +1,90 @@
+#!/bin/zsh
+#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
+sock.ativo ()
+{
+  # test -e "$sock" && { position "$sock" } && return 0 || return 1
+  if { playlist|sed 's/,/\n/g'|grep '"playing":true' } ;then ; return 0 ; else ; return 1; fi
+}
+#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
+sock ()
+{
+  if [[ -z $sock ]]; then
+    # name=$(yad --geometry=200x100 --no-buttons --borders=50 --text "Informe o socket do mpv:" --entry)
+    [[ -z $name ]] && declare -x sock=/tmp/mpvsocket ||  declare -x sock=/tmp/mpvsocket$name
+  fi
+}
+#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
+get.title ()
+{
+  youtube-dl --get-title "$@"
+}
+#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
+export -f indice.selected () #Argumentos
+{
+  echo $@|cut -d" " -f1 > $selcod
+  echo $@|cut -d" " -f1 > $tmpcod
+}
+#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
+format.url () #Argumentos
+{
+  if [[ "$url" =~ "https://www.youtube.com/playlist?|'https://www.youtube.com.*start_radio'" ]]; then
+    declare -x format="best"
+    declare -x new_class="youtube"
+    # while read line; do
+    #   echo $line
+    # done <<< $(youtube-dl --get-format --get-url --get-title $url) verificar esse raciocínio
+  else
+    case "$url" in;
+      *spankbang.com* ) 
+      base=$(\
+      youtube-dl --list-formats "$url"\
+      |grep -Ev "Spank[b|B]ang|format|info"|awk '{print $1,$2,$3}'\
+      |sed -E 's/ |$/\|/g');;
+      *youtube.com* ) 
+      base=$(\
+      youtube-dl --list-formats "$url"\
+      |grep -Ev "Spank[b|B]ang|format|info|youtube|video only"\
+      |awk '{print $1,$2,$3}'\
+      |sed -E 's/ |$/\|/g');;
+      *) echo "best";;
+    esac
+    declare -x format=$(yad --list \
+    --columns=3 --column "Format Code" --column "Extension" --column "Resolution/Audio Only" \
+    --button="BEST":"mp play.best" \
+    --title "Opções :" --selectable-labels --search-column=2 --search-column=3 --regex-search \
+    --text-align=center --geometry 400x320 --borders=5 ${(s:|:)base} |cut -d'|' -f1|grep -Ev '^$')
+  fi
+}
+#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
+test.loaded () 
+{
+  case $@ in
+    url* )
+      playlist \
+      |sed -E 's/,/\n/g;s/\{\"|\}\]|\}|\"|request_id.*|data.*\[|current.*true//g'\
+      |grep -v "title:"\
+      |grep -v '^$'|cut -d':' -f2-\
+      |sed -n ''$2'p' ;;
+    url )
+      playlist \
+      |sed -E 's/,/\n/g;s/\{\"|\}\]|\}|\"|request_id.*|data.*\[|current.*true//g'\
+      |grep -v "title:"\
+      |grep -v '^$'\
+      |cut -d':' -f2- ;;
+    title )
+      playlist \
+      |sed -E 's/,/\n/g;s/\{\"|\}\]|\}|\"|request_id.*|data.*\[|current.*true//g'\
+      |grep -v "filename:"\
+      |grep -v '^$'\
+      |cut -d':' -f2- ;;
+    title* )
+      playlist \
+      |sed -E 's/,/\n/g;s/\{\"|\}\]|\}|\"|request_id.*|data.*\[|current.*true//g'\
+      |grep -v "filename:"\
+      |grep -v '^$'\
+      |cut -d':' -f2-\
+      |sed -n ''$2'p' ;;
+  esac
+}

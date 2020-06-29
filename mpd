@@ -1,0 +1,179 @@
+#!/bin/zsh
+#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
+poly.title ()
+{
+  if [[ -z $sock ]]; then; declare -x sock=/tmp/mpvsocket; fi
+  if { < /tmp/mptitles|sed -n ''$(trackget)'p' |tail -c 45 }; then; return 0;else; <<< "..." ;fi
+}
+mpd ()
+{
+	while true; do
+		$(mpd1)
+	done
+	interval 
+	mpd
+}
+mpd1 ()
+{
+	mpd2
+	wq notificatime 5000 "mp mpd reiniciando...."
+	interval
+	mpd1
+}
+mpd2 () 
+{
+	test $(sock.ativo) && \
+	{	if [[ $statusx == "inativo" ]]; then
+			basepl force 
+			baseplyad force
+			polybar-msg hook mpv 2
+			interval
+			declare -x statusx="ativo"
+			mpd2
+		else
+			if [[ $scopeold != "$(playlist)" ]]; then
+				if [[ "$(wc -c <<< $scopeold)" == "$(playlist| wc -c)" ]]; then
+					polybar-msg hook mpv 2
+					declare -x scopeold="$(playlist)"
+					declare -x statusx="ativo"
+					interval
+					mpd2
+				else
+					declare -x scopeold="$(playlist)"
+					declare -x statusx="ativo"
+					basepl event
+					baseplyad event
+					polybar-msg hook mpv 2
+					interval
+					mpd2
+				fi
+			fi
+		fi 	} || \
+			{
+				[[ $statusx == "ativo" ]] && polybar-msg hook mpv 1
+				declare -x statusx="inativo"
+				interval
+				mpd2
+			}
+	interval
+	mpd2
+}
+#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
+mpd.pids ()
+{
+	ps aux|grep '[m]'p\ mpd
+}
+#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
+baseplyad ()
+{
+  case $@ in
+    null ) return 0;;
+    event ) return 0 ;;
+    force )
+        base
+        [[ -e /tmp/plistyad ]] && rm -f /tmp/plistyad 
+        touch /tmp/plistyad
+        i=1
+        while read line; do
+          echo "$i\n$line" >> /tmp/plistyad
+          i=$(( $i + 1 ))
+        done < $mptitles;;
+  esac
+}
+#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
+base ()
+{
+  case "$@" in
+  	null ) return 0;;
+    force || event )
+      < /tmp/mpurls > /tmp/mpurlsold
+      test.loaded url > /tmp/mpurls 
+  esac
+
+  [[ -e /tmp/mptitles ]] && \
+    declare -x mptitles=/tmp/mptitles || \
+      touch /tmp/mptitles; declare -x mptitles=/tmp/mptitles
+  declare -x mpurls=/tmp/mpurls
+  declare -x fmpurlold=$(wc -l < /tmp/mpurlsold|grep -Ev '^$')
+  declare -x fmpurl=$(wc -l < /tmp/mpurls|grep -Ev '^$')
+}
+#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
+basepl ()
+{
+  base "$@"
+  case "$@" in
+    null ) return 0;;
+    force )
+        wq notificatime 5000 "FORCE"
+        rm -f $mptitles
+        touch $mptitles
+        i=0
+        j=1
+        while read line; do
+          title=$(titleN $i)
+          filename=$(filenameN $i)
+          titlepl=$(test.loaded title $j)
+          filenamepl=$(test.loaded url $j)
+          if [[ $title == "null" ]]; then
+            if [[ $filename =~ "https://" || $filename =~ "watch?" ]]; then
+              if [[ -z $titlepl ]]; then
+                title=$(get.title "$line")
+                echo $title >> $mptitles
+                echo "$j\n$title" >> /tmp/plistyad
+              else
+                echo $titlepl >> $mptitles
+                echo "$j\n$titlepl" >> /tmp/plistyad
+              fi
+            else
+              title=$(echo "$line" |sed 's/.*\///g;s/\///g')
+              echo $title >> $mptitles
+              echo "$j\n$title" >> /tmp/plistyad
+            fi
+          else
+            echo $title >> $mptitles
+            echo "$j\n$title" >> /tmp/plistyad
+          fi
+          i=$(( $i + 1 ))
+          j=$(( $j + 1 ))
+        done < $mpurls;;
+    event )
+	    wq notificatime 5000 "event selecionado!"
+	    if [[ $fmpurl -gt $fmpurlold ]]; then
+	      for (( i=$(( $fmpurlold + 1 )); i<=$fmpurl; i++ ))
+	      {
+	        title=$(titleN $(( $i - 1 )))
+	        titlepl=$(test.loaded title $(( $i - 2 )))
+	        filenamepl=$(test.loaded url $(( $i - 2 )))
+	        filename=$(filenameN $(( $i - 1 )))
+	        if [[ $title == "null" ]]; then
+	          wq notificatime 5000 "titulo null"
+	          if [[ $filename =~ "https://" || $filename =~ "watch?" ]]; then
+	            if [[ -z $titlepl ]]; then
+	              title=$(get.title "$(< $mpurls|sed -n ''$i'p')")
+	              echo $title >> $mptitles
+	              echo "$i\n$title" >> /tmp/plistyad
+	            else
+	              echo $titlepl >> $mptitles
+	              echo "$i\n$titlepl" >> /tmp/plistyad
+	            fi
+	          else
+	            title=$(echo "$(< $mpurls|sed -n ''$i'p')" |sed 's/.*\///g;s/\///g') 
+	            echo $title >> $mptitles
+	            echo "$i\n$title" >> /tmp/plistyad
+	          fi
+	        else
+	          echo $title >> $mptitles
+	          echo "$i\n$title" >> /tmp/plistyad
+	        fi
+	      }
+	    elif [[ $fmpurl -lt $fmpurlold ]]; then
+	      linha=($(grep --line-number -v "$(<$mpurls)" $mpurlsold|cut -d: -f1 ))
+	      for i in {1..$#linha}
+	      {
+	        sed -i ''$linha[$i]'d' $mptitles
+	      }
+	    fi;;
+  esac
+}

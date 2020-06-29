@@ -1,0 +1,74 @@
+ignore              
+seek                 target=Time [flags=Flags] [legacy=Choice]
+revert-seek          [flags=Flags]
+quit                 [code=Integer]
+quit-watch-later     [code=Integer]
+stop                
+frame-step          
+frame-back-step     
+playlist-next        [flags=Choice]
+playlist-prev        [flags=Choice]
+playlist-shuffle    
+playlist-unshuffle  
+sub-step             skip=Integer
+sub-seek             skip=Integer
+print-text           text=String
+show-text            text=String [duration=Integer] [level=Integer]
+expand-text          text=String
+expand-path          text=String
+show-progress       
+sub-add              url=String [flags=Choice] [title=String] [lang=String]
+audio-add            url=String [flags=Choice] [title=String] [lang=String]
+video-add            url=String [flags=Choice] [title=String] [lang=String]
+sub-remove           [id=Integer]
+audio-remove         [id=Integer]
+video-remove         [id=Integer]
+sub-reload           [id=Integer]
+audio-reload         [id=Integer]
+video-reload         [id=Integer]
+rescan-external-file [flags=Choice]
+screenshot           [flags=Flags] [legacy=Choice]
+screenshot-to-file   filename=String [flags=Choice]
+screenshot-raw       [flags=Choice]
+loadfile             url=String [flags=Choice] [options=Key/value list]
+loadlist             url=String [flags=Choice]
+playlist-clear      
+playlist-remove      [index=Choice]
+playlist-move        index1=Integer index2=Integer
+run                  command=String args=String...
+subprocess           args=String list [playback_only=Flag] [capture_size=ByteSize] [capture_stdout=Flag] [capture_stderr=Flag]
+set                  name=String value=String
+change-list          name=String operation=String value=String
+add                  name=String [value=Double]
+cycle                name=String [value=up|down]
+multiply             name=String value=Double
+cycle-values         arg0=String arg1=String argN=String...
+enable-section       name=String [flags=Flags]
+disable-section      name=String
+define-section       name=String contents=String [flags=Choice]
+ab-loop             
+drop-buffers        
+af                   operation=String value=String
+vf                   operation=String value=String
+af-command           label=String command=String argument=String
+vf-command           label=String command=String argument=String
+ao-reload           
+script-binding       name=String
+script-message       args=String...
+script-message-to    target=String args=String...
+overlay-add          id=Integer x=Integer y=Integer file=String offset=Integer fmt=String w=Integer h=Integer stride=Integer
+overlay-remove       id=Integer
+osd-overlay          id=Integer64 format=Choice data=String [res_x=Integer] [res_y=Integer] [z=Integer]
+write-watch-later-co
+hook-add             arg0=String arg1=Integer arg2=Integer
+hook-ack             arg0=Integer
+mouse                x=Integer y=Integer [button=Integer] [mode=Choice]
+keybind              name=String cmd=String
+keypress             name=String
+keydown              name=String
+keyup                [name=String]
+apply-profile        name=String
+load-script          filename=String
+dump-cache           start=Time end=Time filename=String
+ab-loop-dump-cache   filename=String
+ab-loop-align-cache 
