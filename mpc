@@ -5,32 +5,26 @@
 # verificar pois pode exminir muitos comandos clear, atualmente usado só em local file 'lfs'.
 add ()
 {
-  if sock.ativo; then
+  if [[ $(test.loaded url) ]]; then
     print "add"
     for arg in $@
     {
       echo '{ "command": ["loadfile", "'"$arg"'", "append-play"], "request_id": 0}' |socat - $sock & #adicionar File individualmente
     }
-    declare -x url="event"
   else
     print "add.clear"
     rm -f $sock
     echo $#url
     if [[ $#url -eq 1 ]]; then
       mpv $url --input-ipc-server=$sock &
-      declare -x url="force"
     elif [[ $#url -gt 1 ]]; then
       mpv ${url[1]} --input-ipc-server=$sock &
       for i in {2..$#url}
       {
-        echo '{ "command": ["loadfile", "'"${url[$i]}"'", "append-play"], "request_id": 0}' |socat - $sock & #adicionar File individualmente
+        echo '{ "command": ["loadfile", "'"${url[$i]}"'", "append-play"], "request_id": 0}' |socat - $sock #adicionar File individualmente
       }
-      declare -x url="force"
     fi
   fi
-  #mp basepl
-  #mp baseplyad
-  #mp poly.title
 }
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 add.yad () 
@@ -42,15 +36,10 @@ add.yad ()
     for (( i=1; i<=${#${(f)urlx}}; i++ ));do
       echo '{ "command": ["loadfile", "'${${(f)urlx}[$i]}'", "append-play"], "request_id": 0}' |socat - $sock &
     done
-    declare -x url="event"
   else
       urlx="$(echo $url|sed 's/\!//g')"
       echo '{ "command": ["loadfile", "'$urlx'", "append-play"], "request_id": 0}' |socat - $sock &
-      declare -x url="event"
   fi
-  #mp poly.title
-  #mp basepl
-  #mp baseplyad
 }
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 add.yad.clear ()
@@ -59,46 +48,31 @@ add.yad.clear ()
   print "add.yad.clear"
   rm -f $sock
   mpv ${(s:!:)url} --input-ipc-server=$sock &> /dev/null &
-  declare -x url="force"
-  #mp poly.title
-  #mp basepl
-  #mp baseplyad
 }
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 add.url ()
 {
-  case $url in
-    *youtube.com* ) 
-      declare -x new_class="YouTube" && format.url || \
-        { wq notificatime 2000 "Seleção Abortada" & exit 1 };;
-    *spankbang* ) 
-      declare -x new_class="spankbang" && format.url || \
-        { wq notificatime 2000 "Seleção Abortada" & exit 1 };;
-    * ) declare -x new_class="mpv" && declare -x format="best";;
-  esac
-  if sock.ativo; then
+  if [[ $(test.loaded url) ]]; then
     print "add.url"
     echo '{ "command": ["loadfile", "'$url'", "append-play"], "request_id": 0}' |socat - $sock &
-    sleep 0.5
-    # track $(trackget) #testar video reloading isso tah muito feio.
+    sleep 2
     format
-    declare -x url="event"
-    #mp poly.title
-    #mp basepl
-    #mp baseplyad
   else
     print "add.url.clear"
+    case $url in
+      *youtube.com* ) 
+        declare -x new_class="YouTube" && format.url || \
+          { wq notificatime 2000 "Seleção Abortada" & exit 1 };;
+      *spankbang* ) 
+        declare -x new_class="spankbang" && format.url || \
+          { wq notificatime 2000 "Seleção Abortada" & exit 1 };;
+      * ) declare -x new_class="mpv" && declare -x format="best";;
+    esac
     rm -f $sock
     mpv \
     --x11-name="$new_class" \
     --ytdl-format=$format $url \
     --input-ipc-server=$sock &> /dev/null &
-    format
-    # track $(trackget) #testar video reloading isso tah muito feio.
-    declare -x url="force"
-    #mp poly.title
-    #mp basepl
-    #mp baseplyad   
   fi
 }
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
@@ -110,30 +84,18 @@ add.url.clear ()
   --x11-name="$new_class" \
   --ytdl-format=$format $url \
   --input-ipc-server=$sock &> /dev/null &
-  declare -x url="force"
-  #mp poly.title
-  #mp basepl
-  #mp baseplyad
 }
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 add.m3u ()
 { 
-  if sock.ativo; then
+  if [[ $(test.loaded url) ]]; then
     print "add.m3u"
     echo '{ "command": ["loadfile", "'$url'", "append-play"], "request_id": 0}' |socat - $sock & #adiciona playlist
-    declare -x url="event"
-    #mp poly.title
-    #mp basepl
-    #mp baseplyad
   else
     print "add.m3u.clear"
     rm -f $sock
     mpv $url \
     --input-ipc-server=$sock &> /dev/null &
-    declare -x url="force"
-    #mp poly.title
-    #mp basepl
-    #mp baseplyad
   fi
 }
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
@@ -143,10 +105,6 @@ add.m3u.clear ()
   rm -f $sock
   mpv $url \
   --input-ipc-server=$sock &> /dev/null &
-  declare -x url="force"
-  #mp poly.title
-  #mp basepl
-  #mp baseplyad
 }
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 duration ()
@@ -161,7 +119,7 @@ filenameN () #Argumentos
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 filename () 
 {
-  echo '{ "command": ["get_property", "filename"], "request_id": 0}' |socat - $sock #|sed -E 's/.*data":|,".*//g' #nome do arquivo Funcional
+  echo '{ "command": ["get_property", "filename"], "request_id": 0}' |socat - $sock |sed -E 's/.*data":|,".*|"//g'
 }
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 format ()
@@ -176,38 +134,30 @@ commands ()
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 next ()
 { 
-  echo '{ "command": ["playlist-next"], "request_id": 0}' |socat - $sock
-  #mp poly.title
+  echo '{ "command": ["playlist-next", "force"], "request_id": 0}' |socat - $sock
 }
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 stop ()
 {
   echo 'stop' |socat - $sock & #Funcional
-  pkill mpv
   rm /tmp/mptitles
-  #mp poly.title
-  #mp basepl
-  #mp baseplyad
+  playlist > /tmp/mpsession
 }
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 trackgo () #Argumentos , usada apenas pela playlist.yad
 {
-  # shift
   < /tmp/mpcod |read cod
-  wq notificatime 5000 "TrackGo $cod"
   echo '{ "command": ["set_property", "playlist-pos-1", '"$cod"'], "request_id": 0}' |socat - $sock
-  #mp poly.title
 }
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 track () #Argumentos
 {
   echo '{ "command": ["set_property", "playlist-pos-1", '"$1"'], "request_id": 0}' |socat - $sock
-  #mp poly.title
 }
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 trackget () #Argumentos
 {
-  echo '{ "command": ["get_property", "playlist-pos-1"], "request_id": 0}' |socat - $sock |sed -E 's/.*data":|,".*|\"//g;s/\{request_id\:0//g'
+  echo '{ "command": ["get_property", "playlist-pos-1"], "request_id": 0}' |socat - $sock |sed -E 's/.*data":|,".*|\"//g;s/\{request_id\:0//g;s/\"playing\"\:true\}//g'
 }
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 tracks ()
@@ -227,8 +177,7 @@ titleN () #Argumentos
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 prev ()
 {
-  echo '{ "command": ["playlist-prev"], "request_id": 0}' |socat - $sock
-  #mp poly.title
+  echo '{ "command": ["playlist-prev", "force"], "request_id": 0}' |socat - $sock
 }
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 position ()
@@ -242,27 +191,26 @@ positionget ()
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 remove () #Argumentos
 {
-  echo "playlist-remove $(( $@ - 1 ))" |socat - $sock #funcional
-  declare -x url="event"
-  #mp poly.title
-  #mp basepl
-  #mp baseplyad
+  trackremoved="$@"
+  wq notificatime 5000 "Remove $trackremoved"
+  echo "playlist-remove $(( $trackremoved - 1 ))" |socat - $sock #funcional
+  sed -i $trackremoved'd' /tmp/mptitles
+  sed -i $trackremoved'd' /tmp/plistyad
 }
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 removego () #Argumentos
 {
-  # faixa=$(( "$(< $selcod)" -1 ))
   wq notificatime 5000 "RemoveGo $@"
   echo "playlist-remove $(( $@ - 1 ))" |socat - $sock & #funcional
-  declare -x url="event"
-  #mp poly.title
-  #mp basepl
-  #mp baseplyad
 }
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 remaining ()
 { 
   echo '{ "command": ["set_property", "playtime-remaining"], "request_id": 0}' |socat - $sock #time restante Verificar
+}
+reload ()
+{ 
+  track "$(trackget)"
 }
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 vol ()
@@ -272,7 +220,7 @@ vol ()
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 playlist ()
 {
-  echo '{ "command": ["get_property", "playlist"], "request_id": 0}' |socat - $sock
+  echo '{ "command": ["get_property", "playlist"], "request_id": 0}' |socat - $sock #2>/dev/null
 }
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 status ()
@@ -283,7 +231,11 @@ status ()
 playlist.clear () 
 {
   echo "playlist-clear" |socat - $sock #funcional
-  #mp poly.title
+}
+change ()
+{
+  # echo '{ "command": ["change_list", "playlist/'"$1"'/media-title" , "set", '"$2"'], "request_id": 0}' |socat - $1
+  echo '"change_list", "playlist/'$1'/title, set, '$2'"' |socat - $sock  
 }
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#

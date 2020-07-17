@@ -30,8 +30,7 @@ select.file () #Argumentos
 #--------------------------------------------------\---------------------------------------------------------------------------------------------------------------------------------------------------#
 play.best ()
 {
-  sock.ativo && \
-    add.url || rm -f $sock && mpv --x11-name="$new_class" $url --input-ipc-server=$sock &
+  [[ -n $(test.loaded url) ]] && add.url || rm -f $sock && mpv --x11-name="$new_class" $url --input-ipc-server=$sock &
 }
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 pause.toggle () #Argumentos
@@ -47,4 +46,21 @@ pause.toggle () #Argumentos
 msg () #Argumentos
 {
   yad --form --button=yad-ok --borders=5 --mouse --geometry=700x300 --title "Information:" --field=CONTEUDO:TXT "$@"
+}
+#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
+poly.title ()
+{
+  # [[ -z $sock ]] && declare -x sock=/tmp/mpvsocket
+  sock
+  if sock.ativo; then
+    trck=$(trackget)
+    title=$(< /tmp/mptitles|sed -n ''$trck'p' |tail -c 45)
+    { if [[ -n $title ]]; then; <<< "$title %{R}| $trck |%{R-}";else; <<< "..." ;fi } 
+  else
+    { <<< "..." }
+  fi
+}
+dstfy ()
+{
+  [[ -n $1 ]] &&  dunstify -t 5000 "$@" ||dunstify -t 5000 "$(poly.title)"
 }

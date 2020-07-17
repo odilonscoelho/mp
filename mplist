@@ -4,11 +4,11 @@
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 plistyad ()
 {
-  # declare -x url="null"
-  baseplyad
+  baseplyad force
   tail -f --lines=2000 \
   --sleep-interval=1 /tmp/plistyad \
-  |yad --list \
+  |\
+  yad --list \
   --title="Playlist MPV" \
   --grid-lines=vert \
   --grid-lines=hor \
@@ -54,7 +54,7 @@ plist ()
 {
   sock
   basepl "$@"
-  text=$(tput setaf 7; tput setab 0;)
+  # text=$(tput setaf 16; tput setab 7;)
   rev=$(tput rev;)
   res=$(tput sgr0;)
   bold=$(tput bold;)
@@ -63,7 +63,7 @@ plist ()
     if [[ "$i" -eq "$(trackget)" ]]; then
       echo "$rev $bold|   $(printf '%6s' $i) | $(printf '%-50s' $line|tail -c 50) $res"   
     else
-      echo "$text $bold|  $(printf '%8s' $i) | $(printf '%-50s' $line|tail -c 50) "
+      echo " |  $(printf '%8s' $i) | $(printf '%-50s' $line|tail -c 50) "
     fi
     i=$(( $i + 1 ))
   done < /tmp/mptitles

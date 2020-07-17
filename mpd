@@ -2,178 +2,219 @@
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
-poly.title ()
+mpd.pids ()
 {
-  if [[ -z $sock ]]; then; declare -x sock=/tmp/mpvsocket; fi
-  if { < /tmp/mptitles|sed -n ''$(trackget)'p' |tail -c 45 }; then; return 0;else; <<< "..." ;fi
+	ps aux|grep '[m]'p\ mpd\ start|awk '{print $2}'
 }
 mpd ()
 {
-	while true; do
-		$(mpd1)
-	done
-	interval 
-	mpd
+	case $@ in
+		start )
+			val;;
+		stop )
+			kill "${(f)$(mpd.pids)[@]}";;
+		* )
+			msg "Options: 
+			mp mpd start
+			mp mpd stop";;
+		esac
 }
-mpd1 ()
+val ()
 {
-	mpd2
-	wq notificatime 5000 "mp mpd reiniciando...."
+	if [[ `wc -l <<< "$(mpd.pids)"` -le 3 ]]; then
+		declare -x statusx="start"
+		start &>/dev/null &
+	else
+		return 0
+	fi
+}
+start () 
+{
+	`backend`
 	interval
-	mpd1
+	declare -x statusx="restart"
+	dstfy "mpd restart"
+	start
 }
-mpd2 () 
+backend () 
 {
-	test $(sock.ativo) && \
-	{	if [[ $statusx == "inativo" ]]; then
-			basepl force 
-			baseplyad force
-			polybar-msg hook mpv 2
-			interval
+	if $(sock.ativo); then
+		if [[ ${statusx} == "start" ]]; then
+			if [[ -n "$(test.loaded url)" ]]; then
+				option="force"
+			else
+				option="force"
+			fi
+			basepl $option;
+			baseplyad $option;
+			declare -x scopeold="$(playlist)"
 			declare -x statusx="ativo"
-			mpd2
+			interval
+			polybar-msg hook mpv 2
+			backend
+		elif [[ ${statusx} == "restart" ]]; then
+			declare -x statusx="ativo"
+			dstfy "Restart MPD!"
+			# polybar-msg hook mpv 2
+			interval
+			backend
+		elif [[ ${statusx} == "inativo" ]]; then
+			if [[ -n "$(test.loaded url)" ]]; then
+				option="force"
+			else
+				option="force"
+			fi
+			[[ "$scopeold" != "$(playlist)" ]] && { basepl $option && baseplyad $option }
+			declare -x statusx="ativo"
+			declare -x scopeold="$(playlist)"
+			polybar-msg hook mpv 2
 		else
-			if [[ $scopeold != "$(playlist)" ]]; then
-				if [[ "$(wc -c <<< $scopeold)" == "$(playlist| wc -c)" ]]; then
-					polybar-msg hook mpv 2
-					declare -x scopeold="$(playlist)"
-					declare -x statusx="ativo"
-					interval
-					mpd2
-				else
-					declare -x scopeold="$(playlist)"
-					declare -x statusx="ativo"
+			if [[ "$scopeold" != "$(playlist)" ]]; then
+				if [[ $(wc -c <<< "$scopeold") != "$(playlist |wc -c)" ]]; then
 					basepl event
 					baseplyad event
+					declare -x scopeold="$(playlist)"
 					polybar-msg hook mpv 2
-					interval
-					mpd2
+				else
+					declare -x scopeold="$(playlist)"
+					polybar-msg hook mpv 2
 				fi
 			fi
-		fi 	} || \
-			{
-				[[ $statusx == "ativo" ]] && polybar-msg hook mpv 1
-				declare -x statusx="inativo"
-				interval
-				mpd2
-			}
-	interval
-	mpd2
-}
-#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
-mpd.pids ()
-{
-	ps aux|grep '[m]'p\ mpd
+		fi
+		interval
+		backend
+	else
+		if [[ $statusx == "ativo" ]]; then
+			[[ -n "$(test.loaded url)" ]] && declare -x carga="$(test.loaded url)"
+			declare -x statusx="inativo"
+			declare -x scopeold="$(playlist)"
+			polybar-msg hook mpv 1
+		elif [[ $statusx == "start" ]]; then
+			declare -x statusx="inativo"
+			polybar-msg hook mpv 1
+		fi
+		interval
+		backend
+	fi
 }
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 baseplyad ()
 {
-  case $@ in
-    null ) return 0;;
-    event ) return 0 ;;
-    force )
-        base
-        [[ -e /tmp/plistyad ]] && rm -f /tmp/plistyad 
-        touch /tmp/plistyad
-        i=1
-        while read line; do
-          echo "$i\n$line" >> /tmp/plistyad
-          i=$(( $i + 1 ))
-        done < $mptitles;;
-  esac
+	base
+	case $@ in
+	null ) return 0;;
+	event ) return 0 ;;
+	force || ajuste )
+	    rm -f /tmp/plistyad
+	    i=1
+	    while read line; do
+			echo "$i\n$line" >> /tmp/plistyad
+			i=$(( $i + 1 ))
+	    done < $mptitles;;
+	esac
 }
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 base ()
 {
-  case "$@" in
-  	null ) return 0;;
-    force || event )
-      < /tmp/mpurls > /tmp/mpurlsold
-      test.loaded url > /tmp/mpurls 
-  esac
+	case "$@" in
+		null ) return 0;;
+		force || event || ajuste )
+			< /tmp/mpurls > /tmp/mpurlsold
+			test.loaded url > /tmp/mpurls;;
+	esac
 
-  [[ -e /tmp/mptitles ]] && \
-    declare -x mptitles=/tmp/mptitles || \
-      touch /tmp/mptitles; declare -x mptitles=/tmp/mptitles
-  declare -x mpurls=/tmp/mpurls
-  declare -x fmpurlold=$(wc -l < /tmp/mpurlsold|grep -Ev '^$')
-  declare -x fmpurl=$(wc -l < /tmp/mpurls|grep -Ev '^$')
+	[[ -e /tmp/mptitles ]] && \
+		declare -x mptitles=/tmp/mptitles || \
+			{ touch /tmp/mptitles; declare -x mptitles=/tmp/mptitles }
+	declare -x mpurls=/tmp/mpurls
+	declare -x fmpurlold=$(wc -l < /tmp/mpurlsold|grep -Ev '^$')
+	declare -x fmpurl=$(wc -l < /tmp/mpurls|grep -Ev '^$')
 }
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 basepl ()
 {
-  base "$@"
-  case "$@" in
-    null ) return 0;;
-    force )
-        wq notificatime 5000 "FORCE"
-        rm -f $mptitles
-        touch $mptitles
-        i=0
-        j=1
-        while read line; do
-          title=$(titleN $i)
-          filename=$(filenameN $i)
-          titlepl=$(test.loaded title $j)
-          filenamepl=$(test.loaded url $j)
-          if [[ $title == "null" ]]; then
-            if [[ $filename =~ "https://" || $filename =~ "watch?" ]]; then
-              if [[ -z $titlepl ]]; then
-                title=$(get.title "$line")
-                echo $title >> $mptitles
-                echo "$j\n$title" >> /tmp/plistyad
-              else
-                echo $titlepl >> $mptitles
-                echo "$j\n$titlepl" >> /tmp/plistyad
-              fi
-            else
-              title=$(echo "$line" |sed 's/.*\///g;s/\///g')
-              echo $title >> $mptitles
-              echo "$j\n$title" >> /tmp/plistyad
-            fi
-          else
-            echo $title >> $mptitles
-            echo "$j\n$title" >> /tmp/plistyad
-          fi
-          i=$(( $i + 1 ))
-          j=$(( $j + 1 ))
-        done < $mpurls;;
-    event )
-	    wq notificatime 5000 "event selecionado!"
-	    if [[ $fmpurl -gt $fmpurlold ]]; then
-	      for (( i=$(( $fmpurlold + 1 )); i<=$fmpurl; i++ ))
-	      {
-	        title=$(titleN $(( $i - 1 )))
-	        titlepl=$(test.loaded title $(( $i - 2 )))
-	        filenamepl=$(test.loaded url $(( $i - 2 )))
-	        filename=$(filenameN $(( $i - 1 )))
-	        if [[ $title == "null" ]]; then
-	          wq notificatime 5000 "titulo null"
-	          if [[ $filename =~ "https://" || $filename =~ "watch?" ]]; then
-	            if [[ -z $titlepl ]]; then
-	              title=$(get.title "$(< $mpurls|sed -n ''$i'p')")
-	              echo $title >> $mptitles
-	              echo "$i\n$title" >> /tmp/plistyad
-	            else
-	              echo $titlepl >> $mptitles
-	              echo "$i\n$titlepl" >> /tmp/plistyad
-	            fi
-	          else
-	            title=$(echo "$(< $mpurls|sed -n ''$i'p')" |sed 's/.*\///g;s/\///g') 
-	            echo $title >> $mptitles
-	            echo "$i\n$title" >> /tmp/plistyad
-	          fi
-	        else
-	          echo $title >> $mptitles
-	          echo "$i\n$title" >> /tmp/plistyad
-	        fi
-	      }
-	    elif [[ $fmpurl -lt $fmpurlold ]]; then
-	      linha=($(grep --line-number -v "$(<$mpurls)" $mpurlsold|cut -d: -f1 ))
-	      for i in {1..$#linha}
-	      {
-	        sed -i ''$linha[$i]'d' $mptitles
-	      }
-	    fi;;
-  esac
+	base "$@"
+	case "$@" in
+		null ) return 0;;
+		force )
+		    rm -f $mptitles
+		    i=0
+		    j=1
+		    while read line; do
+				filename=$(filenameN $i)
+				if [[ -e "$filename" ]]; then
+					dstfy "$filename - Arquivos locais"
+					title=$(echo "$line" |sed 's/.*\///g;s/\///g')
+					echo $title >> $mptitles
+					echo "$j\n$title" >> /tmp/plistyad
+				else
+					dstfy "$filename - URLs"
+					titlepl=$(test.loaded title $j)
+					filenamepl=$(test.loaded url $j)
+					if [[ "$filenamepl" == "$filename" && -n "$titlepl" ]]; then
+						title=$titlepl
+						dstfy "Título = $titlepl reaproveitado"
+					else
+						title=$(get.title "$line")
+						dstfy "Título = $title gerado"						
+					fi
+					echo $title >> $mptitles
+					echo "$j\n$title" >> /tmp/plistyad
+				fi
+				i=$(( $i + 1 ))
+				j=$(( $j + 1 ))
+		    done < $mpurls;;
+		event )
+		    wq notificatime 5000 "EVENT PLIST"
+		    if [[ $fmpurl -gt $fmpurlold ]]; then
+				for (( i=$(( $fmpurlold + 1 )); i<=$fmpurl; i++ ))
+				{
+					filename=$(filenameN $(( $i - 1 )))
+					if [[ -e $filename ]]; then
+						title=$(echo "$(< $mpurls|sed -n ''$i'p')" |sed 's/.*\///g;s/\///g') 
+						echo $title >> $mptitles
+						echo "$i\n$title" >> /tmp/plistyad
+					else
+						title=$(titleN $(( $i - 1 )))
+						if [[ $title == "null" ]]; then
+							titlepl=$(test.loaded title $i)
+							if [[ -z "$titlepl" ]]; then
+								title=$(get.title "$(< $mpurls|sed -n ''$i'p')")
+								echo $title >> $mptitles
+								echo "$i\n$title" >> /tmp/plistyad
+							else
+								echo $titlepl >> $mptitles
+								echo "$i\n$titlepl" >> /tmp/plistyad
+							fi
+						else
+							echo $title >> $mptitles
+							echo "$i\n$title" >> /tmp/plistyad
+						fi
+					fi	
+				}
+		    else
+				return 0
+		    fi;;
+		ajuste )
+		    wq notificatime 5000 "AJUSTANDO PLAYLIST"
+		    rm -f $mptitles
+		    i=0
+		    j=1
+			while read line; do
+				filename=$(filenameN $i)
+				if [[ -e $filename ]]; then
+					title=$(echo "$line" |sed 's/.*\///g;s/\///g')
+					echo $title >> $mptitles
+					echo "$j\n$title" >> /tmp/plistyad
+				else
+					titlepl=$(test.loaded title $j)
+					filenamepl=$(test.loaded url $j)
+					[[ $filenamepl == $filename && -n $titlepl ]] && title=$titlepl || title=$(get.title "$line")
+					echo $title >> $mptitles
+					echo "$j\n$title" >> /tmp/plistyad
+				fi
+				i=$(( $i + 1 ))
+				j=$(( $j + 1 ))
+		    done < $mpurls;;
+	esac
 }

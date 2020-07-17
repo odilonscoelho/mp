@@ -1,9 +1,0 @@
-#!/bin/zsh
-
-
-# youtube-dl --get-title "https://www.youtube.com/watch?v=oVTkTwgrs4I&list=RDoVTkTwgrs4I&start_radio=1"
-
-# https://www.youtube.com/watch?v=2E5VL997AZA&list=RD2E5VL997AZA&start_radio=1
-# clear
-
-man youtube-dl
