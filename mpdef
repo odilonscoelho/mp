@@ -4,13 +4,14 @@
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 sock.ativo ()
 {
-  if { playlist|sed 's/,/\n/g'|grep '"playing":true' &>/dev/null } ;then ; return 0 ; else ; return 1; fi
+  # if { playlist|sed 's/,/\n/g'|grep '"playing":true' &>/dev/null } ;then ; return 0 ; else ; return 1; fi
+  playlist |sed 's/,/\n/g'|grep -q '"playing":true' && return 0 || return 1
 }
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 sock ()
 {
   if [[ -z $sock ]]; then
-    # name=$(yad --geometry=200x100 --no-buttons --borders=50 --text "Informe o socket do mpv:" --entry) # Ao usar mais de ums socket simultaneo, descomentar!
+    declare -x name=$(yad --geometry=200x100 --no-buttons --borders=50 --text "Informe o socket do mpv:" --entry) # Ao usar mais de ums socket simultaneo, descomentar!
     [[ -z $name ]] && declare -x sock=/tmp/mpvsocket ||  declare -x sock=/tmp/mpvsocket$name
   fi
 }
@@ -20,9 +21,9 @@ get.title ()
   youtube-dl --get-title "$@"
 }
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
-export -f indice.selected () #Argumentos
+indice.selected () #Argumentos
 {
-  echo $@|cut -d" " -f1 > $selcod
+  # echo $@|cut -d" " -f1 > $selcod
   echo $@|cut -d" " -f1 > $tmpcod
 }
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
@@ -31,76 +32,97 @@ format.url () #Argumentos
   if [[ "$url" =~ "https://www.youtube.com/playlist?|'https://www.youtube.com.*start_radio'" ]]; then
     declare -x format="best"
     declare -x new_class="youtube"
+  elif [[ "$url" =~ "painelcode.me" ]]; then
+    declare -x format="best"
+    declare -x new_class="iptv"
   else
     case "$url" in;
+      *www.xvideos.com* )
+        base=$(\
+        youtube-dl --list-formats "$url"\
+        |grep -Ev "[XV]ideos|format|info|Downloading"\
+        |awk '{print $1,$2,$3}'\
+        |sed -E 's/ |$/\|/g');;
       *spankbang.com* )
-      base=$(\
-      youtube-dl --list-formats "$url"\
-      |grep -Ev "Spank[b|B]ang|format|info"|awk '{print $1,$2,$3}'\
-      |sed -E 's/ |$/\|/g');;
-      *youtube.com* ) 
-      base=$(\
-      youtube-dl --list-formats "$url"\
-      |grep -Ev "Spank[b|B]ang|format|info|youtube|video only"\
-      |awk '{print $1,$2,$3}'\
-      |sed -E 's/ |$/\|/g');;
-      *) echo "best";;
+        base=$(\
+        youtube-dl --list-formats "$url"\
+        |grep -Ev "Spank[b|B]ang|format|info"\
+        |awk '{print $1,$2,$3}'\
+        |sed -E 's/ |$/\|/g');;
+      *youtube.com* )
+        base=$(\
+        youtube-dl --list-formats "$url"\
+        |grep -Ev "Spank[b|B]ang|format|info|youtube|video only"\
+        |awk '{print $1,$2,$3}'\
+        |sed -E 's/ |$/\|/g');;
+      *youtu.be* )
+        base=$(\
+        youtube-dl --list-formats "$url"\
+        |grep -Ev "Spank[b|B]ang|format|info|youtube|video only"\
+        |awk '{print $1,$2,$3}'\
+        |sed -E 's/ |$/\|/g');;
     esac
     declare -x format=$(yad --list \
     --columns=3 --column "Format Code" --column "Extension" --column "Resolution/Audio Only" \
     --button="BEST":"mp play.best" \
     --title "Opções :" --selectable-labels --search-column=2 --search-column=3 --regex-search \
     --text-align=center --geometry 400x320 --borders=5 ${(s:|:)base} |cut -d'|' -f1|grep -Ev '^$')
+    [[ -z $format ]] && exit 0
   fi
 }
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 test.loaded () 
 {
   case $@ in
-    urlbkp* )
+    url.iptv )
       playlist \
-      |sed -E 's/,/\n/g;s/\{\"|\}\]|\}|\"|\]|request_id.*|data.*\[|current.*true//g'\
-      |grep -v "title:"\
-      |grep -v '^$'|cut -d':' -f2-\
+      |sed -E 's/\}\,\{/\}\n\{/g;s/\{|\}|\]|\[|"|request_id.*|error\:suc.*//g;s/current:true|playing:true|data://g;s/,title\:/\ntitle\:/g' \
+      |sed -E 's/,$|,,$|,,,$|,,,,$//g' \
+      |grep -Ev '^$|title:' \
+      |cut -d':' -f2- ;;
+    url.iptv* )
+      playlist \
+      |sed -E 's/\}\,\{/\}\n\{/g;s/\{|\}|\]|\[|"|request_id.*|error\:suc.*//g;s/current:true|playing:true|data://g;s/,title\:/\ntitle\:/g' \
+      |sed -E 's/,$|,,$|,,,$|,,,,$//g' \
+      |grep -Ev '^$|title:' \
+      |cut -d':' -f2- \
       |sed -n ''$2'p' ;;
-    urlbkp )
+    title.iptv )
       playlist \
-      |sed -E 's/,/\n/g;s/\{\"|\}\]|\}|\"|\]|request_id.*|data.*\[|current.*true//g'\
-      |grep -v "title:"\
-      |grep -v '^$'\
+      |sed -E 's/\}\,\{/\}\n\{/g;s/\{|\}|\]|\[|"|request_id.*|error\:suc.*//g;s/current:true|playing:true|data://g;s/,title\:/\ntitle\:/g' \
+      |sed -E 's/,$|,,$|,,,$|,,,,$//g' \
+      |grep -Ev '^$|filename:' \
       |cut -d':' -f2- ;;
-    titlebkp )
+    title.iptv* )
       playlist \
-      |sed -E 's/,/\n/g;s/\{\"|\}\]|\}|\"|\]|request_id.*|data.*\[|current.*true//g'\
-      |grep -v "filename:"\
-      |grep -v '^$'\
-      |cut -d':' -f2- ;;
-    titlebkp* )
-      playlist \
-      |sed -E 's/,/\n/g;s/\{\"|\}\]|\}|\"|\]|request_id.*|data.*\[|current.*true//g'\
-      |grep -v "filename:"\
-      |grep -v '^$'\
-      |cut -d':' -f2-\
+      |sed -E 's/\}\,\{/\}\n\{/g;s/\{|\}|\]|\[|"|request_id.*|error\:suc.*//g;s/current:true|playing:true|data://g;s/,title\:/\ntitle\:/g' \
+      |sed -E 's/,$|,,$|,,,$|,,,,$//g' \
+      |grep -Ev '^$|filename:' \
+      |cut -d':' -f2- \
       |sed -n ''$2'p' ;;
     url )
       playlist \
-      |sed -E 's/,/\n/g;s/\{|\}|\]|\[|"|request_id.*|error\:suc.*//g;s/current:true|playing:true|data://g' \
+      |sed -E 's/\}\,\{/\}\n\{/g;s/\{|\}|\]|\[|"|request_id.*|error\:suc.*//g;s/current:true|playing:true|data://g;s/title\: /\ntitle\: /g' \
+      |sed -E 's/,$|,,$|,,,$|,,,,$//g' \
       |grep -Ev '^$|title:' \
       |cut -d':' -f2- ;;
     url* )
       playlist \
-      |sed -E 's/,/\n/g;s/\{|\}|\]|\[|"|request_id.*|error\:suc.*//g;s/current:true|playing:true|data://g' \
+      |sed -E 's/\}\,\{/\}\n\{/g;s/\{|\}|\]|\[|"|request_id.*|error\:suc.*//g;s/current:true|playing:true|data://g;s/title\: /\ntitle\: /g' \
+      |sed -E 's/,$|,,$|,,,$|,,,,$//g' \
       |grep -Ev '^$|title:' \
       |cut -d':' -f2- \
       |sed -n ''$2'p' ;;
     title )
       playlist \
-      |sed -E 's/,/\n/g;s/\{|\}|\]|\[|"|request_id.*|error\:suc.*//g;s/current:true|playing:true|data://g' \
+      |sed -E 's/\}\,\{/\}\n\{/g;s/\{|\}|\]|\[|"|request_id.*|error\:suc.*//g;s/current:true|playing:true|data://g;s/title\: /\ntitle\: /g' \
+      |sed -E 's/,$|,,$|,,,$|,,,,$//g' \
       |grep -Ev '^$|filename:' \
       |cut -d':' -f2- ;;
     title* )
       playlist \
-      |sed -E 's/,/\n/g;s/\{|\}|\]|\[|"|request_id.*|error\:suc.*//g;s/current:true|playing:true|data://g' \
+      |sed -E 's/\}\,\{/\}\n\{/g;s/\{|\}|\]|\[|"|request_id.*|error\:suc.*//g;s/current:true|playing:true|data://g;s/title\: /\ntitle\: /g' \
+      |sed -E 's/,$|,,$|,,,$|,,,,$//g' \
       |grep -Ev '^$|filename:' \
       |cut -d':' -f2- \
       |sed -n ''$2'p' ;;

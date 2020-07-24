@@ -4,7 +4,6 @@
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 save () #reformular
 {
-  sock
   file="$(select.file save)"
   [[ -z $file ]] && msg "Operação cancelada ! PLaylist não Salva!"
   [[ -d $file ]] && msg "Operação cancelada ! PLaylist não Salva! Foi selecionado apenas o diretório"
@@ -16,12 +15,33 @@ save () #reformular
     echo "#EXTINF:'" "', $line\n$(< /tmp/mpurls| sed -n ''$i'p')" >> $file &&
     i=$(( $i + 1 ))
   done < /tmp/mptitles
-  wq notificatime 10000 "playlist salva em $file"
+  dstfy "$file"
+}
+
+add.to ()
+{
+  if [[ $1 =~ "essa" ]]; then
+    url=$(test.loaded url "$(trackget)")
+    title=$(test.loaded title $(trackget))
+  else
+    url=$(test.loaded url $1)
+    url=$(test.loaded title $1)
+  fi
+  if [[ -z $2 ]]; then
+    file="$(select.file save)"
+    [[ -z $file ]] && msg "Operação cancelada ! PLaylist não Salva!"
+    [[ -d $file ]] && msg "Operação cancelada ! PLaylist não Salva! Foi selecionado apenas o diretório"
+  else
+    file="$2"
+  fi
+  [[ -z $title ]] && title=$(test.loaded title.iptv $1)
+  [[ -z $title ]] && title=$(get.title $1)
+  echo "#EXTINF:' ', $title\n"$url"" >> $file
+  exit 0
 }
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 select.file () #Argumentos
 {
-  sock
   [[ -z $1 ]] && \
     file="$(yad --separator="!" --text="Select files....$ _>" --file --multiple)" && \
       [[ -n $file ]] && mp "$file" #url file &&
@@ -35,7 +55,6 @@ play.best ()
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 pause.toggle () #Argumentos
 {
-  sock
   if [[ $(echo '{ "command": ["get_property", "pause"] }' |socat - $sock |grep 'true') ]];then
     echo '{ "command": ["set_property", "pause", false] }' |socat - $sock
   else
@@ -50,12 +69,9 @@ msg () #Argumentos
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 poly.title ()
 {
-  # [[ -z $sock ]] && declare -x sock=/tmp/mpvsocket
-  sock
   if sock.ativo; then
     trck=$(trackget)
-    title=$(< /tmp/mptitles|sed -n ''$trck'p' |tail -c 45)
-    { if [[ -n $title ]]; then; <<< "$title %{R}| $trck |%{R-}";else; <<< "..." ;fi } 
+    <<< "`title|tail -c 45` %{R}| $trck |%{R-}"
   else
     { <<< "..." }
   fi

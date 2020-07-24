@@ -59,19 +59,11 @@ add.url ()
     format
   else
     print "add.url.clear"
-    case $url in
-      *youtube.com* ) 
-        declare -x new_class="YouTube" && format.url || \
-          { wq notificatime 2000 "Seleção Abortada" & exit 1 };;
-      *spankbang* ) 
-        declare -x new_class="spankbang" && format.url || \
-          { wq notificatime 2000 "Seleção Abortada" & exit 1 };;
-      * ) declare -x new_class="mpv" && declare -x format="best";;
-    esac
+    format.url
     rm -f $sock
     mpv \
     --x11-name="$new_class" \
-    --ytdl-format=$format $url \
+    --ytdl-format="$format" $url \
     --input-ipc-server=$sock &> /dev/null &
   fi
 }
@@ -192,16 +184,21 @@ positionget ()
 remove () #Argumentos
 {
   trackremoved="$@"
-  wq notificatime 5000 "Remove $trackremoved"
+  trackremovedyad1="$(( $trackremoved * 2 ))"
+  trackremovedyad2="$(( $trackremovedyad1 - 1 ))"
+  dstfy "$trackremoved"
   echo "playlist-remove $(( $trackremoved - 1 ))" |socat - $sock #funcional
-  sed -i $trackremoved'd' /tmp/mptitles
-  sed -i $trackremoved'd' /tmp/plistyad
+  sed -i $trackremoved'd' $mptitles
+  sed -i ''$trackremovedyad2','$trackremovedyad1'd' $mplistyad
+  # baseplyad removed 
 }
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
-removego () #Argumentos
+removeyad () #Argumentos
 {
-  wq notificatime 5000 "RemoveGo $@"
-  echo "playlist-remove $(( $@ - 1 ))" |socat - $sock & #funcional
+  # trck="$(< $tmpcod)"
+  # dstfy "RemoveYad $trck"
+  remove "$(< $tmpcod)"
+  # echo "playlist-remove $(( $trck - 1 ))" |socat - $sock & #funcional
 }
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 remaining ()

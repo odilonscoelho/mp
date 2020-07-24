@@ -4,9 +4,9 @@
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 plistyad ()
 {
-  baseplyad force
-  tail -f --lines=2000 \
-  --sleep-interval=1 /tmp/plistyad \
+  baseplyad $@
+  tail -F --lines=2000 \
+  --sleep-interval=1 $mplistyad \
   |\
   yad --list \
   --title="Playlist MPV" \
@@ -30,21 +30,22 @@ plistyad ()
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 controls ()
 {
-  sock
   yad \
+  --mouse \
   --geometry 300x50 \
-  --borders 0 \
+  --borders 5 \
   --form --columns 10 \
   --title="Controls MPV" \
   --field="":FBTN "mp" \
   --field="":FBTN "mp plistyad" \
   --field="":FBTN "mp select.file" \
-  --field="":FBTN "mp remove $(<$selcod)" \
+  --field="":FBTN "mp removeyad" \
   --field="  ":FBTN "mp save" \
   --field="  ":FBTN "mp stop" \
   --field="    ":FBTN "mp prev" \
   --field="|":FBTN "mp pause.toggle" \
   --field="    ":FBTN "mp next" \
+  --field="  ":FBTN "mp format" \
   --no-buttons
   # --button="":0 
 }
@@ -52,20 +53,39 @@ controls ()
 # Para Terminal
 plist ()
 {
-  sock
   basepl "$@"
-  # text=$(tput setaf 16; tput setab 7;)
   rev=$(tput rev;)
   res=$(tput sgr0;)
   bold=$(tput bold;)
   i=1
-  while read line; do
-    if [[ "$i" -eq "$(trackget)" ]]; then
-      echo "$rev $bold|   $(printf '%6s' $i) | $(printf '%-50s' $line|tail -c 50) $res"   
-    else
-      echo " |  $(printf '%8s' $i) | $(printf '%-50s' $line|tail -c 50) "
-    fi
-    i=$(( $i + 1 ))
-  done < /tmp/mptitles
+  scopeold=""
+  trcksold="$(tracks)"
+  trckold="$(trackget)"
+  plistloop && plistloop || plistloop
+  plist event
 }
+plistloop ()
+{
+  if [[ $(tracks) -eq $trcksold && $trckold -eq $(trackget) && $scopeold == $(< $mptitles) ]]; then
+    sleep 4
+    plistloop
+  else
+    clear
+    while read line; do
+      if [[ "$i" -eq "$(trackget)" ]]; then
+        echo "$rev $bold|   $(printf '%6s' $i) | $(printf '%-50s' $line|tail -c 50) $res"   
+      else
+        echo " |  $(printf '%8s' $i) | $(printf '%-50s' $line|tail -c 50) "
+      fi
+      i=$(( $i + 1 ))
+    done < $mptitles
+    scopeold=$(< $mptitles)
+    trcksold=$(tracks)
+    trckold=$(trackget)
+    sleep 4
+    i=1
+    plistloop
+  fi
+}
+
 #爛
