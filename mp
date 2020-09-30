@@ -13,20 +13,20 @@
 #        mas pode facilmente ser retirado do código ou implementado para printar no terminal
 
 # Interval para mpd
-interval () {sleep 2}
+interval () {sleep 1}
 # Declaração do path do projeto
 declare -x path_mp=/home/losaoall/hdbkp/projetos/shell/mp/
 # Declaração do path de playlist, verificar isso, acho desnecessário.
 declare -x path_playlist=$HOME/hdbkp/playlist
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 # Import das funções...
-. $path_mp/mpdef
-. $path_mp/mpc
-. $path_mp/mpd
-. $path_mp/mpfn
-. $path_mp/mplist
+. $path_mp/mpdef.zsh
+. $path_mp/mpc.zsh
+. $path_mp/mpd.zsh
+. $path_mp/mpfn.zsh
+. $path_mp/mplist.zsh
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
-if [[ "$1" = "--sock" ]]; then
+if [[ "$1" == "--sock" ]]; then
   declare -x name="$2"
   declare -x sock="/tmp/mpvsocket$name"
   declare -x mpurls="/tmp/mpurls$name"
@@ -53,24 +53,44 @@ else
 fi
 
 if [[ -z "$(grep ".m3u" <<< "$@")" && -f $1 ]]; then
-  print "Is File!"
-  declare -x url=($@)
-  add $url 2>/dev/null
-  exit 0
+  [[ $# -gt 1 ]] && \
+    {
+      # declare -x url=($@)
+      add "$1" 2>/dev/null
+      mp mpd start
+      shift 1
+      add $@
+      exit 0
+    } || \
+      {
+        declare -x url="$@"
+        add "$url" 2>/dev/null
+        mp mpd start
+      }
 elif [[ -n "$(grep ".m3u" <<< "$@")" && -f $1 ]]; then
-  print "Is M3U!"
-  declare -x url="$@"
-  add.m3u 2>/dev/null
-  exit 0
+  [[ $# -gt 1 ]] && \
+    {
+      add "$1" 2>/dev/null
+      mp mpd start
+      shift 1
+      add $@
+      exit 0
+    } || \
+      {
+        declare -x url="$@"
+        add "$url" 2>/dev/null
+        mp mpd start
+      }
 elif [[ $1 =~ "poly.title" ]]; then
-  poly.title
+  poly.title $2
   exit 0
 else
   sock
-  [[ -z $1 ]] && declare -x url="$(xclip -sel clipboard -o)" || declare -x url=$@
+  [[ -z $1 ]] && declare -x url="$(xclip -sel clipboard -o)" || declare -x url=($@)
   case $url in
+    stop ) pkill mpv; stop; polybar-msg hook mpv 1; rm -f $mptitles; pkill mpv ;;
+    clear) pkill mpv; stop; polybar-msg hook mpv 1; rm -f $mptitles; pkill mpv ;;
     add.to* ) add.to $2 $3;;
-    clear) stop; pkill mpv; return 0;;
     playlist ) playlist;;
     playlist.clear ) playlist.clear;;
     plistyad* ) plistyad $2;;
@@ -79,19 +99,31 @@ else
     mpd* ) $@;;
     change* ) $@;;
     trackget ) trackget;;
-    format.url* ) declare -x url="$(test.loaded url $2)"; format.url; format;;
-    format ) declare -x url="$(test.loaded url $(trackget))"; format.url; format; reload;;
+    format.url* ) 
+      url="$(test.loaded url $2)"
+      format.url
+      format;;
+    format ) 
+      if [[ -z $format ]]; then
+        url="$(test.loaded url $(trackget))"
+        format.url
+        format
+        reload
+      else
+        format
+        reload
+      fi;;
     get.title* ) get.title $2;; # Verificar impactos!
     removeyad ) declare -x tmpcod="/tmp/mpcod"; remove "$(< $tmpcod)";;
-    basepl || baseplyad || commands || controls || duration || \
+    basepl* || baseplyad || commands || controls || duration || \
     filenameN* || filename || indice.selected* || get.title* || list* || msg* || next || \
     pause.toggle || prev || play.best || plistyad || plistyarg* || \
-    position* || select.file* || save || status || stop || remove* || sock.ativo || sock* || \
+    position* || select.file* || save* || status || remove* || sock.ativo || sock* || \
     title || test* || trackgo* || track* || tracks || titleN* || url* || vol* || volume* || reload ) $@ 2&>/dev/null &;;
-    https://* ) add.url;;
-    http://* ) add.url;;
+    https://* ) add.url $url;mp mpd start;;
+    http://* ) add.url $url;mp mpd start;;
     # O único separador válido para os yads de seleção de arquivos, é '!' 
-     *!* ) sock.ativo && add.yad|| add.yad.clear;;
+     *!* ) sock.ativo && { add.yad; mp mpd start }|| { add.yad.clear; mp mpd start };;
     * ) msg "
     Não foi possível resolver o
     argumento ou arquivo/url...

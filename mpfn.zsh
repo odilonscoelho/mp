@@ -4,7 +4,7 @@
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 save () #reformular
 {
-  file="$(select.file save)"
+  [[ -z $1 ]] && file="$(select.file save)" || file=$1
   [[ -z $file ]] && msg "Operação cancelada ! PLaylist não Salva!"
   [[ -d $file ]] && msg "Operação cancelada ! PLaylist não Salva! Foi selecionado apenas o diretório"
   t=1;while read line; do; export title[$t]=$line;t=$t+1;done < /tmp/mptitles
@@ -22,7 +22,7 @@ add.to ()
 {
   if [[ $1 =~ "essa" ]]; then
     url=$(test.loaded url "$(trackget)")
-    title=$(test.loaded title $(trackget))
+    title=$(test.loaded title "$(trackget)")
   else
     url=$(test.loaded url $1)
     url=$(test.loaded title $1)
@@ -36,6 +36,7 @@ add.to ()
   fi
   [[ -z $title ]] && title=$(test.loaded title.iptv $1)
   [[ -z $title ]] && title=$(get.title $1)
+  
   echo "#EXTINF:' ', $title\n"$url"" >> $file
   exit 0
 }
@@ -43,7 +44,7 @@ add.to ()
 select.file () #Argumentos
 {
   [[ -z $1 ]] && \
-    file="$(yad --separator="!" --text="Select files....$ _>" --file --multiple)" && \
+    file="$(yad --separator="!" --text="Select files....$ _>" --file --multiple --geometry=600x800)" && \
       [[ -n $file ]] && mp "$file" #url file &&
   [[ -n $1 ]] && yad --text="Select files....$\_>" --file --multiple --save
 }
@@ -70,10 +71,14 @@ msg () #Argumentos
 poly.title ()
 {
   if sock.ativo; then
-    trck=$(trackget)
-    <<< "`title|tail -c 45` %{R}| $trck |%{R-}"
+    if [[ $(playlist |sed 's/,/\n/g'|grep '"playing":true') ]]; then 
+      trck=$(trackget)
+      printf '%-20s %10s' "%{R} $(title|tail -c 20)" "| $trck | %{R-}"
+    else
+      printf '%-20s %10s' "%{R} End PLaylist!" "|...| %{R-}"
+    fi
   else
-    { <<< "..." }
+    echo " "
   fi
 }
 dstfy ()

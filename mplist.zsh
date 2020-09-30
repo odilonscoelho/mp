@@ -9,6 +9,7 @@ plistyad ()
   --sleep-interval=1 $mplistyad \
   |\
   yad --list \
+  --icon-size=48 \
   --title="Playlist MPV" \
   --grid-lines=vert \
   --grid-lines=hor \
@@ -32,22 +33,21 @@ controls ()
 {
   yad \
   --mouse \
-  --geometry 300x50 \
+  --geometry 30x50 \
   --borders 5 \
-  --form --columns 10 \
-  --title="Controls MPV" \
-  --field="":FBTN "mp" \
-  --field="":FBTN "mp plistyad" \
-  --field="":FBTN "mp select.file" \
-  --field="":FBTN "mp removeyad" \
-  --field="  ":FBTN "mp save" \
-  --field="  ":FBTN "mp stop" \
-  --field="    ":FBTN "mp prev" \
-  --field="|":FBTN "mp pause.toggle" \
-  --field="    ":FBTN "mp next" \
-  --field="  ":FBTN "mp format" \
+  --form --columns 5 \
+  --title=" Controls MPV" \
+  --field=" Xclip      !youtube! execute mp xlip -o":FBTN "mp" \
+  --field=" Open File  !fileopen!Selecionar arquivos para reprodução":FBTN "mp select.file" \
+  --field=" Stop/Clear !user-trash!Stop MPD MPV e Clear playlist":FBTN "mp stop" \
+  --field=" Del Sel    !remove!Deleta arquivo selecionado na playlist":FBTN "mp removeyad" \
+  --field=" Previous   !go-previous!Previous track":FBTN "mp prev" \
+  --field=" Plist      !open-menu!Abrir a playlist":FBTN "mp plistyad force" \
+  --field=" Play/Pause !player_play!Toggle pause/play":FBTN "mp pause.toggle" \
+  --field=" Save Pl    !gtk-save!Salvar playlist carregada":FBTN "mp save" \
+  --field=" Next       !go-next!Next track":FBTN "mp next" \
+  --field=" Format URL !configuration!Escolher resolução/formato":FBTN "mp format" \
   --no-buttons
-  # --button="":0 
 }
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 # Para Terminal
@@ -67,7 +67,7 @@ plist ()
 plistloop ()
 {
   if [[ $(tracks) -eq $trcksold && $trckold -eq $(trackget) && $scopeold == $(< $mptitles) ]]; then
-    sleep 4
+    sleep 1
     plistloop
   else
     clear
@@ -82,7 +82,7 @@ plistloop ()
     scopeold=$(< $mptitles)
     trcksold=$(tracks)
     trckold=$(trackget)
-    sleep 4
+    sleep 0.5
     i=1
     plistloop
   fi

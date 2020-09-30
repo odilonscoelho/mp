@@ -5,7 +5,7 @@
 # verificar pois pode exminir muitos comandos clear, atualmente usado só em local file 'lfs'.
 add ()
 {
-  if [[ $(test.loaded url) ]]; then
+  if sock.ativo; then
     print "add"
     for arg in $@
     {
@@ -14,16 +14,7 @@ add ()
   else
     print "add.clear"
     rm -f $sock
-    echo $#url
-    if [[ $#url -eq 1 ]]; then
-      mpv $url --input-ipc-server=$sock &
-    elif [[ $#url -gt 1 ]]; then
-      mpv ${url[1]} --input-ipc-server=$sock &
-      for i in {2..$#url}
-      {
-        echo '{ "command": ["loadfile", "'"${url[$i]}"'", "append-play"], "request_id": 0}' |socat - $sock #adicionar File individualmente
-      }
-    fi
+    mpv $@ --input-ipc-server=$sock &> /dev/null &
   fi
 }
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
@@ -52,19 +43,20 @@ add.yad.clear ()
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 add.url ()
 {
-  if [[ $(test.loaded url) ]]; then
-    print "add.url"
-    echo '{ "command": ["loadfile", "'$url'", "append-play"], "request_id": 0}' |socat - $sock &
-    sleep 2
-    format
+  if sock.ativo; then
+    print "add"
+    for arg in $@
+    {
+      echo '{ "command": ["loadfile", "'"$arg"'", "append-play"], "request_id": 0}' |socat - $sock & #adicionar File individualmente
+    }
   else
-    print "add.url.clear"
-    format.url
     rm -f $sock
-    mpv \
-    --x11-name="$new_class" \
-    --ytdl-format="$format" $url \
-    --input-ipc-server=$sock &> /dev/null &
+    mpv "$1" --input-ipc-server=$sock &> /dev/null &
+    shift 1
+    for arg in $@
+    {
+      echo '{ "command": ["loadfile", "'"$arg"'", "append-play"], "request_id": 0}' |socat - $sock & #adicionar File individualmente
+    }
   fi
 }
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
@@ -131,9 +123,9 @@ next ()
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 stop ()
 {
-  echo 'stop' |socat - $sock & #Funcional
-  rm /tmp/mptitles
-  playlist > /tmp/mpsession
+  echo 'stop' |socat - $sock #Funcional
+  # rm /tmp/mptitles
+  # playlist > /tmp/mpsession
 }
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 trackgo () #Argumentos , usada apenas pela playlist.yad
@@ -190,7 +182,7 @@ remove () #Argumentos
   echo "playlist-remove $(( $trackremoved - 1 ))" |socat - $sock #funcional
   sed -i $trackremoved'd' $mptitles
   sed -i ''$trackremovedyad2','$trackremovedyad1'd' $mplistyad
-  # baseplyad removed 
+  baseplyad removed 
 }
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 removeyad () #Argumentos
