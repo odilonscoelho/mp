@@ -6,6 +6,7 @@ mp é um controle remoto do mpv que permite gerenciar mais de uma sessão por ve
 
 ## Dependências:
 * zsh -> não precisa ser o shell default do user
+* allopts -> (incluso)
 * mpv -> +youtube-dl para reproduzir videos do youtube
 * yad -> para seleção de arquivos fora do terminal
 * rofi -> para listar playlist e ter um painel de controle
