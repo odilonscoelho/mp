@@ -1,12 +1,9 @@
 #!/bin/zsh
-#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
-#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
-#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
-mpd.pids ()
+mpd.pids ()  #
 {
 	case $@ in
 		MPD )
-			ps aux|grep '[m]p mpd' |awk '{print $2}' ;;
+			ps aux|grep '[m]p \-mpd' |awk '{print $2}' ;;
 		BASEPL )
 			ps aux|grep '[m]p basepl force' |awk '{print $2}' ;;
 	esac
@@ -15,20 +12,27 @@ mpd ()
 {
 	case $@ in
 		start )
-			sock
 			interval
 			val "MPD";;
 		stop )
 			kill "${(f)$(mpd.pids 'MPD')[@]}";;
 		* )
 			msg "Options: 
-			mp mpd start
-			mp mpd stop";;
+			mp -mpd start
+			mp -mpd stop";;
 		esac
 }
-val ()
+val ()  #
 {
-	if [[ $(wc -l <<< `mpd.pids "$@"`) -le 3 ]];then
+	case ${#$(get.socks)} in
+		0 ) limit=3 ;; 
+		1 ) limit=3 ;;
+		2 ) limit=4 ;;
+		3 ) limit=5 ;;
+		4 ) limit=6 ;;
+	esac
+
+	if [[ $(wc -l <<< `mpd.pids "$@"`) -le $limit ]];then
 		case $@ in
 			MPD )
 				declare -x statusx="start"
@@ -46,20 +50,26 @@ val ()
 		esac
 	fi
 }
-start () 
+start ()  # 
 {
 	while true; do
 		backend
-		[[ $? -ne 5 ]] && { declare -x statusx="restart"; interval } || mp clear			
+		[[ $? -ne 5 ]] && 
+			{ 
+				declare -x statusx="restart"; interval 
+			} || \
+				{
+					mp -stop
+				}
 	done
 }
-backend () 
+backend ()  # 
 {
 	if sock.ativo; then
 		if [[ ${statusx} == "start" ]]; then
 			declare -x scopeold="$(playlist)"
-			mp basepl force &&
-			baseplyad force &&
+			basepl force &&
+			# baseplyad force &&
 			sleep 3 &&
 			polybar-msg hook mpv 1
 		else
@@ -67,7 +77,7 @@ backend ()
 				if [[ $(wc -c <<< "$scopeold") != "$(playlist |wc -c)" ]]; then
 					basepl event
 					polybar-msg hook mpv 1
-					baseplyad event
+					# baseplyad event
 					declare -x scopeold="$(playlist)"
 				else
 					polybar-msg hook mpv 1
@@ -76,27 +86,28 @@ backend ()
 			fi
 		fi
 	else
-		declare -x scopeold="$(playlist)"
-		mp clear
+		# declare -x scopeold="$(playlist)"
+		polybar-msg hook mpv 1
+		mp -stop
 		exit 5
 	fi
 }
-#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
-baseplyad ()
+
+baseplyad ()  #
 {
 	base
 	case $@ in
 	null ) return $(( 0 + 0 ));;
 	event ) return $(( 0 + 0 ));;
 	force )
-	    :> $mplistyad
+	    : > $mplistyad
 	    i=1
 	    while read line; do
 			echo "$i\n$line" >> $mplistyad
 			i=$(( $i + 1 ))
 	    done < $mptitles;;
 	removed ) 
-	 	:> $mplistyad
+	 	: > $mplistyad
 	    i=1
 	    while read line; do
 			echo "$i\n$line" >> $mplistyad
@@ -104,29 +115,23 @@ baseplyad ()
 	    done < $mptitles;;
 	esac
 }
-#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
-base ()
+
+basepl ()  
 {
+	# baseplloop
+	# base $@
 	case "$@" in
 		null ) return $(( 0 + 0 ));;
 		force || event || ajuste )
 			< $mpurls > $mpurlsold
-			test.loaded url > $mpurls;;
+			loaded url > $mpurls;;
 		* ) return $(( 0 + 0 ));;
 	esac
-	[[ -e $mptitle ]] && return $(( 0 + 0 )) || touch $mptitles
+	
+	# [[ -f $mptitle ]] && return $(( 0 + 0 )) || : > $mptitles
 	declare -x fmpurlold=$(wc -l < $mpurlsold|grep -Ev '^$')
 	declare -x fmpurl=$(wc -l < $mpurls|grep -Ev '^$')
-}
-#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
-baseplloop ()
-{
-	[[ $(val "BASEPL") == "1" ]] && sleep 2 && baseplloop || return $(( 0 + 0 ))
-}
-basepl ()
-{
-	# baseplloop
-	base $@
+
 	case "$@" in
 		null ) return $(( 0 + 0 ));;
 		force )
@@ -144,10 +149,10 @@ basepl ()
 					echo $title >> $mptitles
 					echo "$j\n$title" >> $mplistyad
 				else
-					titlepl="$(test.loaded title $j)"
-					[[ -z $titlepl ]] && titlepl="$(test.loaded title.iptv $j)"
-					filenamepl="$(test.loaded url $j)"
-					[[ -z $filenamepl ]] && filenamepl="$(test.loaded url.iptv $j)"
+					titlepl="$(loaded title $j)"
+					[[ -z $titlepl ]] && titlepl="$(loaded title.iptv $j)"
+					filenamepl="$(loaded url $j)"
+					[[ -z $filenamepl ]] && filenamepl="$(loaded url.iptv $j)"
 					if [[ -z "$titlepl" ]]; then
 						title="$(get.title "$line")"
 						[[ -z $title ]] && title=$filename
@@ -181,7 +186,7 @@ basepl ()
 					else
 						title=$(titleN $(( $i - 1 )))
 						if [[ $title == "null" ]]; then
-							titlepl=$(test.loaded title $i)
+							titlepl=$(loaded title $i)
 							if [[ -z "$titlepl" ]]; then
 								title=$(get.title "$(< $mpurls|sed -n ''$i'p')")
 								echo $title >> $mptitles
@@ -201,7 +206,7 @@ basepl ()
 		    fi;;
 		ajuste )
 		    dstfy "AJUSTANDO PLAYLIST"
-		    :> $mptitles
+		    : > $mptitles
 		    i=0
 		    j=1
 			while read line; do
@@ -215,8 +220,8 @@ basepl ()
 					echo $title >> $mptitles
 					echo "$j\n$title" >> $mplistyad
 				else
-					# titlepl=$(test.loaded title $j)
-					filenamepl=$(test.loaded url $j)
+					# titlepl=$(loaded title $j)
+					filenamepl=$(loaded url $j)
 					title=$(get.title $filenamepl)
 					echo $title >> $mptitles
 					echo "$j\n$title" >> $mplistyad
