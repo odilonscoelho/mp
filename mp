@@ -12,37 +12,39 @@ interval () {sleep 1} #
 
 # TRATATIVA DE ARGUMENTOS
 . allopts \
--bpl: -basepl: --basepl: \
--bply: -baseplyad: --baseplyad: \
--c! -controls! --controls! \
--cr! -controlsr! --controlsr! \
--console! --console! \
+-bpl: -basepl: \
+-bply: -baseplyad: \
+-c! -controls! \
+-cr! -controlsr! \
+-console! \
 -f! -format! \
--gs! -get-socks! --get-socks! \
+-gs! -get-socks! \
 -h! -help! \
 -indice: \
--md: -modi: --modi: \
+-md: -modi: \
 -mpd: \
--nx! -next! --next! \
--p! -pause! --pause! -play! --play! \
--pb! -polybar! --polybar! \
--pv! -prev! --prev! \
--pl: -plist: --plist: \
--plr! -plistrofi! --plistrofi! \
--ply: -plistyad: --plistyad: \
--rm: -remove: --remove: \
--rmy! -removeyad! --removeyad! \
--S! -Save! --Save! \
--svf: -save-file: --save-file: \
--s: -sock: --sock: \
--st! -stop! --stop! \
--sf! -selfile! --selfile! \
--t: -track: --track: \
--tgo! -trackgo! --trackgo! \
--tget! -trackget! --trackget! \
--tt: -title: --title: \
--u: -url: --url: \
--v: -vol: --vol: \
+-nx! -next! \
+-p! -pause! -play! \
+-pb! -polybar! \
+-pv! -prev! \
+-pl: -plist: \
+-plr! -plistrofi! \
+-ply: -plistyad: \
+-rm: -remove: \
+-rmy! -removeyad! \
+-S! -Save! \
+-svf: -save-file: \
+-s: -sock: \
+-st! -stop! \
+-sf! -selfile! \
+-t: -track: \
+-tgo! -trackgo! \
+-tget! -trackget! \
+-tt: -title: \
+-u: -url: \
+-v: -vol: \
+-x! -xclip! \
+-tn: -titlen: \
 -depur! \
 $@
 
@@ -90,8 +92,10 @@ for x in $ARGUMENTOS[@]
 		$ARGUMENTOS[trackget] || $ARGUMENTOS[tget] ) cmd+=(trackget) ;;
 		$ARGUMENTOS[track] || $ARGUMENTOS[t] ) cmd+=(track $x) ;;
 		$ARGUMENTOS[title] || $ARGUMENTOS[tt] ) cmd+=(loaded title $x) ;;
+		$ARGUMENTOS[titlen] || $ARGUMENTOS[tn] ) cmd+=(titleN $x) ;;
 		$ARGUMENTOS[url] || $ARGUMENTOS[u] ) cmd+=(loaded url $x) ;;
 		$ARGUMENTOS[vol] || $ARGUMENTOS[v] ) cmd+=(vol $x) ;;
+		$ARGUMENTOS[xclip] || $ARGUMENTOS[x] ) clip=$(xclip -sel clipboard -o) ;;
 		$ARGUMENTOS[depur] ) cmd+=(playlist) ;;
 		esac
 }
@@ -123,13 +127,6 @@ for arg in $@
 		if [[ $arg =~ '!' ]]; then
 			yads+=("$arg")
 			shift
-		else
-			case $arg in 
-				https://* ) add "$(xclip -sel clipboard -o)";mp -mpd start;;
-				http://* ) add "$(xclip -sel clipboard -o)";mp -mpd start;;
-				* ) <<< "Não foi possível resolver '"$arg"'" ;;
-			esac
-			shift
 		fi
 	fi
 }
@@ -146,16 +143,17 @@ if [[ -n $yads ]]; then
 	add ${(s:!:)yads[@]}
 	mp -mpd start
 fi	
-Clipboard="$(xclip -sel clipboard -o)"
-if [[ -z $cmd && -z $files && -z $m3us && -z $yads && -n $Clipboard ]]; then
-	case $Clipboard in 
-		https://* ) add "$(xclip -sel clipboard -o)";mp -mpd start;;
-		http://* ) add "$(xclip -sel clipboard -o)";mp -mpd start;;
-		* ) <<< "Não foi possível resolver '"$Clipboard"'" ;;
-	esac
-fi
 if [[ -n $cmd ]]; then
 	$cmd
+fi
+
+if [[ -z $cmd && -z $files && -z $m3us && -z $yads && -n $clip ]]; then
+	case $clip in 
+		https://* ) add "$clip";mp -mpd start;;
+		http://* ) add "$clip";mp -mpd start;;
+		* ) <<< "Não foi possível resolver '"$Clipboard"'" ;;
+	esac
+	unset clip
 fi
 if sock.ativo; then
 	exit 0

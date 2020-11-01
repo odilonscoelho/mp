@@ -139,16 +139,14 @@ positionget ()
 	echo '{ "command": ["set_property", "time-pos", '"$1"'], "request_id": 0}' |socat - $sock #posição Verifica além de tudo se o socket está ativo
 }
 
-remove () #Argumentos
+remove ()
 {
 	trackremoved="$@"
 	trackremovedyad1="$(( $trackremoved * 2 ))"
 	trackremovedyad2="$(( $trackremovedyad1 - 1 ))"
-	dstfy "$trackremoved"
+	dstfy "$trackremoved Removed"
 	echo "playlist-remove $(( $trackremoved - 1 ))" |socat - $sock #funcional
 	sed -i $trackremoved'd' $mptitles
-	sed -i ''$trackremovedyad2','$trackremovedyad1'd' $mplistyad
-	baseplyad removed 
 }
 
 removeyad () #Argumentos

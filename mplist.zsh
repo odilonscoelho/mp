@@ -1,10 +1,8 @@
 #!/bin/zsh
-#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
-#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
-#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 plistrofi ()
 {
-	genBase ()
+	pidfile=$(mktemp)
+	genBase () #
 	{
 		unset i
 		while read line; do
@@ -13,37 +11,44 @@ plistrofi ()
 		done < $mptitles
 	}
 
-	basepl $@
+	# basepl $@
 	list=$(genBase )
 
 	while true; do
 		selRow=$(($(trackget)-1))
 		optn=$(echo "$list" | \
-		rofi -dmenu -sep ";" -line-padding 10 -font "Iosevka Term SS07 Medium 16" \
-		-selected-row $selRow -width 100 -location 2 -theme-str '#listview { layout: horizontal; }' \
+		rofi -dmenu -pid $pidfile -sep ";" -line-padding 10 -font "Iosevka Term SS07 Medium 16" \
+		-selected-row $selRow -width 90 --xoffset 5 -location 2 -theme-str '#listview { layout: horizontal; }' \
 		-theme-str '#inputbar { enabled: false; }' -no-click-to-exit -yoffset 74 -normal-window)
 		[[ -n $optn ]] && { mp -track $(cut -d ' ' -f 1 <<< $optn) && continue } || break
 	done
+	rm -f $mktemp
 }
-console ()
+console () #
 {
-	tmpfile=$(mktemp)
-	grep "()" $(print $HOME/hdbkp/projetos/shell/mp/*) |sed -E 's/\(\)//g'|cut -d ':' -f2|grep -v "#" | \
-	rofi -dmenu -line-padding 10 -font "Iosevka Term SS07 Medium 16" -width 35 -location 2 -theme-str '#listview { layout: horizontal; }' \
-	-no-click-to-exit -yoffset 74 -normal-window |read COMMAND 
-
-	[[ -n $COMMAND && $(grep "()" $(print $HOME/hdbkp/projetos/shell/mp/*) |sed -E 's/\(\)//g'|cut -d ':' -f2|grep -v "#") =~ $COMMAND ]] && \
-		{
-			$COMMAND &> $tmpfile
-			[[ -n $(<$tmpfile) ]] && < $tmpfile | \
-			rofi -dmenu -l $(wc -l < $tmpfile) -line-padding 10 -font "Iosevka Term SS07 Medium 16" -width 35 -location 2 \
-			-no-click-to-exit -yoffset 74 -normal-window -theme-str '#inputbar { enabled: false; }' & 
-			console
-		} ||  
+	[[ -f $pidfile ]] || pidfile=$(mktemp)
+	[[ -f $tmpfile ]] || tmpfile=$(mktemp)
+	COMMANDS+=($(grep "()" $(print $HOME/hdbkp/projetos/shell/mp/*) |sed -E 's/\(\)//g'|cut -d ':' -f2|grep -Ev "#|COMMANDS")) #
+	COMMAND=$(print -l $COMMANDS[@] | rofi -dmenu -line-padding 10 -font "Iosevka Term SS07 Medium 16" -width 35 -location 2 -theme-str '#listview { layout: horizontal; }'	-no-click-to-exit -yoffset 74 -normal-window)
+	COMPARE=$(cut -d ' ' -f 1 <<<$COMMAND )
+	if [[ -n $COMMAND && $COMMANDS[@] =~ $COMPARE ]]; then
+		${${(s: :)COMMAND}[@]} &> $tmpfile
+		dstfy "$(echo -e "mp console\n -> $COMMAND\n-> $(< $tmpfile)")"
+		console
+	else
+		[[ -n $COMMAND ]] && \
 			{
-				rm -f $tmpfile 
+				dstfy "$(echo -e "mp console\n-> $COMMAND\nnão previsto")"
+				rm -f $tmpfile $pidfile
 				exit 0
-			}
+			} || \
+				{ 
+					rm -f $tmpfile $pidfile
+					exit 0 
+				}
+	fi
+
+	rm -f $tmpfile $pidfile
 }
 controls.rofi ()
 {
@@ -55,7 +60,7 @@ controls.rofi ()
 	case $cmd in
 		"" ) mp -console;;
 		"" ) mp -stop; selRow=6; controls.rofi ;;
-		"" ) save; selRow=4; controls.rofi ;;
+		"" ) save; selRow=4; controls.rofi ;;
 		"" ) select.file & selRow=3; controls.rofi;;
 		"" ) prev & selRow=10; controls.rofi;;
 		"" ) stop & selRow=7; controls.rofi;;
@@ -68,7 +73,6 @@ controls.rofi ()
 		"" ) plistrofi null; controls.rofi ;;
 	esac
 }
-
 plistyad ()
 {
 	baseplyad $@
@@ -94,7 +98,6 @@ plistyad ()
 	--dclick-action="mp -trackgo"
 	exit 0
 }
-#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 controls ()
 {
 	yad \
@@ -115,7 +118,6 @@ controls ()
 	--field=" Format URL !configuration!Escolher resolução/formato":FBTN "mp -format" \
 	--no-buttons
 }
-#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 # Para Terminal
 plist ()
 {

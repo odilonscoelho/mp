@@ -5,12 +5,19 @@ mp -> media player with mpv
 mp é um controle remoto do mpv que permite gerenciar mais de uma sessão por vez por meio dos sockets criados, permite salvar playlists de vídeos do youtube por exemplo, ou de arquivos locais em .m3u, fornece por meio do rofi ou yad um controle para o mpv quando executar arquivos de aúdio (onde a janela do mpv por padrão será escondida) e uma playlist em yad, rofi e terminal, há também um módulo para polybar via IPC.
 
 ## Dependências:
-* zsh -> não precisa ser o shell default do user
+<!-- * zsh -> não precisa ser o shell default do user
 * allopts -> (incluso)
 * mpv -> +youtube-dl para reproduzir videos do youtube
 * yad -> para seleção de arquivos fora do terminal
 * rofi -> para listar playlist e ter um painel de controle
-* socat -> para comunicação com os sockets
+* socat -> para comunicação com os sockets -->
+Itens marcados são necessários:
+
+- [x] zsh
+- [x] allopts
+- [x] mpv
+- [ ] rofi
+- [x] socat
 
 ## Configuração:
 
@@ -19,8 +26,7 @@ mp é um controle remoto do mpv que permite gerenciar mais de uma sessão por ve
 input-ipc-server=/tmp/mpvsocketDefault
 idle=yes
 ```
-* Dê permissão de execução ao script e coloque o diretório no seu PATH
-* Se usa o bash como shell default altere o **~/.zshrc** por **~/.bashrc**
+Dê permissão de execução ao script e coloque o diretório no seu PATH, caso use o bash como shell default, altere **~/.zshrc** por **~/.bashrc** no exemplo abaixo:
 ```
 cd /path/mp
 chmod +x mp*

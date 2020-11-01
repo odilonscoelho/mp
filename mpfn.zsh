@@ -86,18 +86,19 @@ poly.title ()   #
 						printf '%-20s %10s' "  $(title|tail -c 20)" "| %{F$mprefixcolor}%{F-} $trck |  "					
 					fi
 				else
-					printf '%-20s %10s' "           " "|  |  "
+					printf '%-20s %10s' " ... " "|  |  "
 					continue
 				fi
 			fi
 		}
 	else
-		printf '%-10s %10s' "      " "|  |  "
+		printf '%-10s %10s' " ... " "|  |  "
 	fi
 }
 dstfy ()   #
 {
-	[[ -n $1 ]] &&  dunstify -t 5000 "$@" ||dunstify -t 5000 "$(poly.title)"
+	Icon="${${(f)"$(print -l $HOME/.icons/${${(s:=:)${(f)"$(< ~/.config/gtk-3.0/settings.ini)"}[3]}[2]}/apps/scalable/mpv*)"}[1]}"
+	[[ -z $@ ]] && dunstify -t 5000 -i $Icon "$(title)" || dunstify -t 5000 -i $Icon "$@"
 }
 
 help ()
