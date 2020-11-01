@@ -16,8 +16,9 @@ Itens marcados são necessários:
 - [x] zsh
 - [x] allopts
 - [x] mpv
-- [ ] rofi
 - [x] socat
+- [x] yad
+- [x] rofi
 
 ## Configuração:
 
