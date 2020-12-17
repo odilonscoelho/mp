@@ -19,7 +19,7 @@ add ()
 add.yad () 
 {
 	if sock.ativo; then
-		dstfy "YADs requisitado"
+		# dstfy "YADs requisitado"
 		print "add.yad"
 		if [[ ${#${(s:!:)yads}} -ne 1 ]]; then
 			urlx="$(print -l $yads|sed 's/\!/\n/g'|grep -Ev '^$')"

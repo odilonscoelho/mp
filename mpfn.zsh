@@ -83,7 +83,7 @@ poly.title ()   #
 						printf '%-20s %10s' "  $(title|tail -c 12)" "| %{F$mprefixcolor}%{F-} $trck |  "
 					else
 						trck=$(trackget)
-						printf '%-20s %10s' "  $(title|tail -c 20)" "| %{F$mprefixcolor}%{F-} $trck |  "					
+						printf '%-20s %10s' "  $(title|tail -c 12)" "| %{F$mprefixcolor}%{F-} $trck |  "					
 					fi
 				else
 					printf '%-20s %10s' " ... " "|  |  "

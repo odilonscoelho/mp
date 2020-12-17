@@ -1,16 +1,18 @@
 #!/bin/zsh
 
-# Interval para mpd
+# Interval para mpd - daemon das info:
 interval () {sleep 1} #
-
 # Import das funções...
 . mpdef.zsh
 . mpc.zsh
 . mpd.zsh
 . mpfn.zsh
 . mplist.zsh
-
-# TRATATIVA DE ARGUMENTOS
+# Verifica se recebeu argumentos via pipe:
+if [[ -p /dev/stdin ]]; then
+	pipeArgs="$(cat -)"
+fi
+# Atribui argumentos as possibilidades de parametros pré-definidos:
 . allopts \
 -bpl: -basepl: \
 -bply: -baseplyad: \
@@ -27,7 +29,7 @@ interval () {sleep 1} #
 -p! -pause! -play! \
 -pb! -polybar! \
 -pv! -prev! \
--pl: -plist: \
+-pl! -plist: \
 -plr! -plistrofi! \
 -ply: -plistyad: \
 -rm: -remove: \
@@ -37,6 +39,7 @@ interval () {sleep 1} #
 -s: -sock: \
 -st! -stop! \
 -sf! -selfile! \
+-search! \
 -t: -track: \
 -tgo! -trackgo! \
 -tget! -trackget! \
@@ -45,17 +48,25 @@ interval () {sleep 1} #
 -v: -vol: \
 -x! -xclip! \
 -tn: -titlen: \
--depur! \
+-cmd: \
 $@
-
+# Refuga os parametros que foram usados para indicar a atribuição de parametro=argumento:
 for i in $@
 {
 	[[ "$ARGREFUSED" =~ "$i" ]] && shift
 }
-
+# Atribui ação correspondente a cada possibilidade de parametro de entrada, onde é requirido valores $x é o valor do argumento passado como parametro:
 for x in $ARGUMENTOS[@] 
 {
 	case $x in
+		$ARGUMENTOS[sock] || $ARGUMENTOS[s] ) 
+			declare -x sock="/tmp/mpvsocket$x"
+		 	declare -x mpurls="/tmp/mpurls$x"
+		 	declare -x mpurlsold="/tmp/mpurlsold$x"
+		 	declare -x mptitles="/tmp/mptitles$x"
+		 	declare -x mplistyad="/tmp/plistyad$x"
+		 	declare -x tmpcod="/tmp/mpcod$x"
+		 	declare -x mpid="/tmp/mpid$x" ;;
 		$ARGUMENTOS[basepl] || $ARGUMENTOS[bpl] ) cmd+=(basepl $x) ;;
 		$ARGUMENTOS[baseplyad] || $ARGUMENTOS[bply] ) cmd+=(baseplyad $x) ;;
 		$ARGUMENTOS[console] ) cmd+=(console) ;;
@@ -65,41 +76,35 @@ for x in $ARGUMENTOS[@]
 		$ARGUMENTOS[help] || $ARGUMENTOS[h] ) cmd+=(help) ;;
 		$ARGUMENTOS[getsocks] || $ARGUMENTOS[gs] ) cmd+=(get.socks) ;;
 		$ARGUMENTOS[indice] ) cmd+=(indice.selected $x) ;;
-		$ARGUMENTOS[mpd] ) cmd+=(mpd $x) ;;
+		$ARGUMENTOS[mpd] ) cmd+=(mpd "$x") ;;
 		$ARGUMENTOS[modi] || $ARGUMENTOS[m] ) modi.def $x ;;
 		$ARGUMENTOS[next] || $ARGUMENTOS[nx] ) cmd+=(next $x) ;;
 		$ARGUMENTOS[prev] || $ARGUMENTOS[pv] ) cmd+=(prev $x) ;;
 		$ARGUMENTOS[play] || $ARGUMENTOS[pause] || $ARGUMENTOS[p] ) cmd+=(pause.toggle) ;;
 		$ARGUMENTOS[polybar] || $ARGUMENTOS[pb] ) cmd+=(poly.title) ;;
-		$ARGUMENTOS[plist] || $ARGUMENTOS[pl] ) cmd+=(plist $x) ;;
+		$ARGUMENTOS[pl] ) cmd+=(plist);;
+		$ARGUMENTOS[plist] ) cmd+=(plist $x);;
 		$ARGUMENTOS[plistrofi] || $ARGUMENTOS[plr] ) cmd+=(plistrofi null) ;;
 		$ARGUMENTOS[plistyad] || $ARGUMENTOS[ply] ) cmd+=(plistyad $x) ;;
 		$ARGUMENTOS[remove] || $ARGUMENTOS[rm] ) cmd+=(remove $x) ;;
 		$ARGUMENTOS[removeyad] || $ARGUMENTOS[rmy] ) cmd+=(removeyad) ;;
 		$ARGUMENTOS[Salve] || $ARGUMENTOS[S] ) cmd+=(save $x) ;;
 		$ARGUMENTOS[savefile] || $ARGUMENTOS[svf] ) cmd+=(save $x) ;;
-		$ARGUMENTOS[sock] || $ARGUMENTOS[s] ) 
-			declare -x sock="/tmp/mpvsocket$x"
-		 	declare -x mpurls="/tmp/mpurls$x"
-		 	declare -x mpurlsold="/tmp/mpurlsold$x"
-		 	declare -x mptitles="/tmp/mptitles$x"
-		 	declare -x mplistyad="/tmp/plistyad$x"
-		 	declare -x tmpcod="/tmp/mpcod$x"
-		 	declare -x mpid="/tmp/mpid$x" ;;
-		$ARGUMENTOS[selfile] || $ARGUMENTOS[sf] ) cmd+=(select.file) ;; 	
+		$ARGUMENTOS[search] ) cmd+=(search) ;;
+		$ARGUMENTOS[selfile] || $ARGUMENTOS[sf] ) cmd+=(select.file) ;;
 		$ARGUMENTOS[stop] || $ARGUMENTOS[st] ) cmd+=(stop) ;;
 		$ARGUMENTOS[trackgo] || $ARGUMENTOS[tgo] ) cmd+=(trackgo) ;;
 		$ARGUMENTOS[trackget] || $ARGUMENTOS[tget] ) cmd+=(trackget) ;;
 		$ARGUMENTOS[track] || $ARGUMENTOS[t] ) cmd+=(track $x) ;;
 		$ARGUMENTOS[title] || $ARGUMENTOS[tt] ) cmd+=(loaded title $x) ;;
-		$ARGUMENTOS[titlen] || $ARGUMENTOS[tn] ) cmd+=(titleN $x) ;;
-		$ARGUMENTOS[url] || $ARGUMENTOS[u] ) cmd+=(loaded url $x) ;;
+		$ARGUMENTOS[titlen] || $ARGUMENTOS[tn] ) cmd+=("titleN" "$x") ;;
+		$ARGUMENTOS[url] || $ARGUMENTOS[u] ) cmd+=("loaded" "url" "$x") ;;
 		$ARGUMENTOS[vol] || $ARGUMENTOS[v] ) cmd+=(vol $x) ;;
 		$ARGUMENTOS[xclip] || $ARGUMENTOS[x] ) clip=$(xclip -sel clipboard -o) ;;
-		$ARGUMENTOS[depur] ) cmd+=(playlist) ;;
-		esac
+		$ARGUMENTOS[cmd] ) cmd+=(${(s: :)x}) ;;
+	esac
 }
-
+# Confirma se a solicitaçao de comando é a requisição de informações sobre os socks abertos, caso seja não atribui temp files a essa solicitação:
 if [[ ! $cmd =~ "get.socks" ]]; then	
 	[[ -z $sock ]] && declare -x sock=/tmp/mpvsocketDefault
 	[[ -z $mpurls ]] && declare -x mpurls=/tmp/mpurlsDefault
@@ -112,7 +117,7 @@ else
 	get.socks || print "Não há socks ativos!" 2>/dev/null
 	exit 0
 fi
-
+# Valida os argumentos soltos que podem ser arquivos ou urls para reprodução e atribui ao array correto para execução:
 for arg in $@
 {
 	if [[ -f $arg ]]; then
@@ -130,7 +135,11 @@ for arg in $@
 		fi
 	fi
 }
-
+# Verifica se os array correspondente a cada tipo de arquivo está vazio, se houver valores esses serão executados e uma chamada para o mpd start para iniciar o daemon caso esteja desligado:
+if [[ -n $pipeArgs ]]; then
+	add $pipeArgs[@]
+	mp -mpd start
+fi
 if [[ -n $m3us ]]; then
 	add $m3us[@]
 	mp -mpd start
@@ -140,21 +149,23 @@ if [[ -n $files ]]; then
 	mp -mpd start
 fi
 if [[ -n $yads ]]; then
-	add ${(s:!:)yads[@]}
+	add ${${(s:!:)yads}[@]}
 	mp -mpd start
 fi	
-if [[ -n $cmd ]]; then
-	$cmd
-fi
-
-if [[ -z $cmd && -z $files && -z $m3us && -z $yads && -n $clip ]]; then
+# Para xlip:
+if [[ -n $clip ]]; then
 	case $clip in 
 		https://* ) add "$clip";mp -mpd start;;
 		http://* ) add "$clip";mp -mpd start;;
-		* ) <<< "Não foi possível resolver '"$Clipboard"'" ;;
+		* ) <<< "Não foi possível resolver '"$clip"'" ;;
 	esac
 	unset clip
 fi
+# Valida se há comandos a serem executados e os executa:
+if [[ -n $cmd ]]; then
+	$cmd[@]
+fi
+# Finaliza e verifica se o sock usado na chamada do programa está ativo, estando ativo, apenas encerra a chamada, se não limpa os temp files alocados para o sock:
 if sock.ativo; then
 	exit 0
 else

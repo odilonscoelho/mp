@@ -71,38 +71,19 @@ search ()
 		fi	  
 	}
 
+
 	unset qt_return
 	custom_return="false"
 	typeset -a parms
 
-	for i in $@
-	{
-		if [[ $i == "--return" || $i == "-r" ]]; then
-			 custom_return="true"
-			 shift 1
-			 continue
-		elif [[ $custom_return == "true" ]]; then
-			 qt_return=$i
-			 custom_return="false"
-			 shift 1
-			 continue
-		else
-			parms+=($i)
-		fi
-	}
-
-	[[ -z $qt_return ]] && qt_return=1
-
-	if [[ $qt_return -gt 1 ]]; then
-		select sel in ${(f)"$(main $parms)"}; do
-			[[ -n $sel ]] && { mp "${${(s: :)sel}[-2]}" } || break
-		done
-	else
-		select sel in "$(main $parms)"; do
-			[[ -n $sel ]] && { mp "${${(s: :)sel}[-2]}" } || break
-		done
-	fi 
-
+	print "Search -> "
+	read parms
+	print "Return -> "
+	read qt_return
+	select sel in ${(f)"$(main $parms)"}; do
+		[[ -n $sel ]] && { add "${${(s: :)sel}[-2]}" } || break
+	done
+	exit 0
 }
 
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
@@ -155,7 +136,63 @@ format.url () #Argumentos
 	fi
 }
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
-loaded () 
+
+loaded ()
+{
+	unset url title id
+
+	plistCarregada="$(playlist)"
+
+	<<< $plistCarregada| sed 's/,/\n/g'|grep -q '"title":' && \
+	{
+		for x in ${(f)"$(grep -Ev '^$|error:sucess|current:true|playing:true|id:|title:' <<< "$(sed 's/{\|}\|\[\|\].*\|\"//g;s/,/\n/g;s/data://g;s/filename://g' <<< "$plistCarregada")")"}
+		{
+			url+=("$x")
+		}
+		for x in ${(f)"$(grep -Ev '^$|error:sucess|current:true|playing:true|id:|filename:' <<< "$(sed 's/{\|}\|\[\|\].*\|\"//g;s/,/\n/g;s/data://g;s/title://g' <<< "$plistCarregada")")"}
+		{
+			title+=("$x")
+		}
+		[[ $#url[@] -ne $#title[@] ]] && \
+			{
+				for i in {$(($#url[@] - ($#url[@] - $#title[@])))..$#url[@]}
+				{
+					[[ -z "$(sed -n ''$i'p' /tmp/mptitlesDefault)" ]] && title+=("$(sed -n ''$i'p' /tmp/mptitlesDefault)") || title+=("null")
+				}
+			}
+	} || \
+		{
+			control=1
+			for x in ${(f)"$(grep -Ev '^$|error:sucess|current:true|playing:true|id:|title:' <<< "$(sed 's/{\|}\|\[\|\].*\|\"//g;s/,/\n/g;s/data://g;s/filename://g' <<< "$plistCarregada")")"}
+			{
+				url+=("$x")
+				titlemptitles=$(sed -n ''$control'p' $mptitles)
+				[[ -z $titlemptitles ]] && title+=("null") || title+=("$titlemptitles")
+				control=$((control+1))
+			}
+		}
+
+	[[ $# -gt 1 ]] && \
+		{
+			case $1 in
+				url* )
+					print -l $url |sed -n ''$2'p';;
+				title* ) 
+					print -l $title |sed -n ''$2'p';;
+			esac
+		} || \
+			{
+				case $1 in
+					url ) 
+						print -l $url;;
+					title ) 
+						print -l $title;;
+				esac
+			}
+}
+
+
+loadeds ()
 {
   # grep -Ev 'request_id|error":' <<< $(sed -E 's/,/\n/g;s/\{\"filename\"\://g;s/\"title\"\://g;s/\}//g;s/\]//g' /tmp/playlist)
 	case $@ in
@@ -190,18 +227,21 @@ loaded ()
 			|sed -E 's/\}\,\{/\}\n\{/g;s/\{|\}|\]|\[|"|request_id.*|error\:suc.*//g;s/current:true|playing:true|data://g;s/title\: /\ntitle\: /g' \
 			|sed -E 's/,$|,,$|,,,$|,,,,$//g' \
 			|grep -Ev '^$|title:' \
+			|sed 's/\,id\:.*//g' \
 			|cut -d':' -f2- ;;
 		url* )
 			playlist \
 			|sed -E 's/\}\,\{/\}\n\{/g;s/\{|\}|\]|\[|"|request_id.*|error\:suc.*//g;s/current:true|playing:true|data://g;s/title\: /\ntitle\: /g' \
 			|sed -E 's/,$|,,$|,,,$|,,,,$//g' \
 			|grep -Ev '^$|title:' \
+			|sed 's/\,id\:.*//g' \
 			|cut -d':' -f2- \
 			|sed -n ''$2'p' ;;
 		title )
 			playlist \
 			|sed -E 's/\}\,\{/\}\n\{/g;s/\{|\}|\]|\[|"|request_id.*|error\:suc.*//g;s/current:true|playing:true|data://g;s/title\: /\ntitle\: /g' \
 			|sed -E 's/,$|,,$|,,,$|,,,,$//g' \
+			|sed 's/\,id\:.*//g' \
 			|grep -Ev '^$|filename:' \
 			|cut -d':' -f2- ;;
 		title* )
@@ -210,6 +250,7 @@ loaded ()
 			|sed -E 's/,$|,,$|,,,$|,,,,$//g' \
 			|grep -Ev '^$|filename:' \
 			|cut -d':' -f2- \
-			|sed -n ''$2'p' ;;
+			|sed -n ''$2'p' \
+			|sed 's/\,id\:.*//g'  ;;
 	esac
 }

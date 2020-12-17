@@ -11,7 +11,6 @@ plistrofi ()
 		done < $mptitles
 	}
 
-	# basepl $@
 	list=$(genBase )
 
 	while true; do
@@ -19,7 +18,7 @@ plistrofi ()
 		optn=$(echo "$list" | \
 		rofi -dmenu -pid $pidfile -sep ";" -line-padding 10 -font "Iosevka Term SS07 Medium 16" \
 		-selected-row $selRow -width 90 --xoffset 5 -location 2 -theme-str '#listview { layout: horizontal; }' \
-		-theme-str '#inputbar { enabled: false; }' -no-click-to-exit -yoffset 74 -normal-window)
+		-theme-str '#inputbar { enabled: false; }' -no-click-to-exit -yoffset 74 -normal-window -window-title "MP Plist")
 		[[ -n $optn ]] && { mp -track $(cut -d ' ' -f 1 <<< $optn) && continue } || break
 	done
 	rm -f $mktemp
@@ -29,7 +28,7 @@ console () #
 	[[ -f $pidfile ]] || pidfile=$(mktemp)
 	[[ -f $tmpfile ]] || tmpfile=$(mktemp)
 	COMMANDS+=($(grep "()" $(print $HOME/hdbkp/projetos/shell/mp/*) |sed -E 's/\(\)//g'|cut -d ':' -f2|grep -Ev "#|COMMANDS")) #
-	COMMAND=$(print -l $COMMANDS[@] | rofi -dmenu -line-padding 10 -font "Iosevka Term SS07 Medium 16" -width 35 -location 2 -theme-str '#listview { layout: horizontal; }'	-no-click-to-exit -yoffset 74 -normal-window)
+	COMMAND=$(print -l $COMMANDS[@] | rofi -dmenu -line-padding 10 -font "Iosevka Term SS07 Medium 16" -width 35 -location 2 -theme-str '#listview { layout: horizontal; }'	-no-click-to-exit -yoffset 74 -normal-window -window-title "MP Console")
 	COMPARE=$(cut -d ' ' -f 1 <<<$COMMAND )
 	if [[ -n $COMMAND && $COMMANDS[@] =~ $COMPARE ]]; then
 		${${(s: :)COMMAND}[@]} &> $tmpfile
@@ -56,7 +55,7 @@ controls.rofi ()
 	echo " ;  ;  ;  ;  ;  ;  ;  ;  ;  ;  ;  ;  " | \
 	rofi -dmenu -sep ";" -line-padding 25 -font "Arimo Nerd Font 35" -width 27 -location 3 \
 	-theme-str '#listview { layout: horizontal; }' -theme-str '#inputbar { enabled: false; }' \
-	-no-click-to-exit -yoffset 74 -normal-window | read cmd
+	-no-click-to-exit -yoffset 74 -normal-window -window-title "MP Control" | read cmd
 	case $cmd in
 		"" ) mp -console;;
 		"" ) mp -stop; selRow=6; controls.rofi ;;
@@ -67,7 +66,7 @@ controls.rofi ()
 		"" ) pause.toggle & selRow=8; controls.rofi;;
 		"" ) psuse.toggle & selRow=9; controls.rofi;;
 		"" ) next & selRow=11; controls.rofi;;
-		"" ) mp & selRow=2; controls.rofi;;
+		"" ) mp -xclip & selRow=2; controls.rofi;;
 		"" ) format & selRow=1; controls.rofi;;
 		"" ) searchYT; selRow=0; controls.rofi;;
 		"" ) plistrofi null; controls.rofi ;;
@@ -121,7 +120,7 @@ controls ()
 # Para Terminal
 plist ()
 {
-	basepl "$@"
+	[[ -n $@ ]] && basepl "$@" || basepl null
 	rev=$(tput rev;)
 	res=$(tput sgr0;)
 	bold=$(tput bold;)
@@ -155,5 +154,7 @@ plistloop ()  #
 		plistloop
 	fi
 }
+
+
 
 #爛

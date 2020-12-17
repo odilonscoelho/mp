@@ -27,9 +27,9 @@ val ()  #
 	case ${#$(get.socks)} in
 		0 ) limit=3 ;; 
 		1 ) limit=3 ;;
-		2 ) limit=4 ;;
-		3 ) limit=5 ;;
-		4 ) limit=6 ;;
+		2 ) limit=5 ;;
+		3 ) limit=6 ;;
+		4 ) limit=7 ;;
 	esac
 
 	if [[ $(wc -l <<< `mpd.pids "$@"`) -le $limit ]];then
@@ -38,7 +38,7 @@ val ()  #
 				declare -x statusx="start"
 				start &>/dev/null & ;;
 			BASEPL )
-				return $(( 0 + 0 ))
+				return 0
 		esac
 	else
 		case $@ in
@@ -46,7 +46,7 @@ val ()  #
 				exit 0 ;;
 			BASEPL )
 				dstfy "$@ RECHAÇADA!!!" 
-				return $(( 0 + 1 )) ;;
+				return 1 ;;
 		esac
 	fi
 }
@@ -60,6 +60,7 @@ start ()  #
 			} || \
 				{
 					mp -stop
+					polybar-msg hook mpv 1
 				}
 	done
 }
@@ -68,164 +69,103 @@ backend ()  #
 	if sock.ativo; then
 		if [[ ${statusx} == "start" ]]; then
 			declare -x scopeold="$(playlist)"
-			basepl force &&
-			# baseplyad force &&
-			# sleep 3 &&
+			basepl force
+			# poly.title > /tmp/mpinfo
 			polybar-msg hook mpv 1
+			dstfy "$(tracks) Files Add
+			Play $(title)"
 		else
 			if [[ "$scopeold" != "$(playlist)" ]]; then
 				if [[ $(wc -c <<< "$scopeold") != "$(playlist |wc -c)" ]]; then
 					basepl event &&
+					# poly.title > /tmp/mpinfo
 					polybar-msg hook mpv 1
 					declare -x scopeold="$(playlist)"
 				else
+					# poly.title > /tmp/mpinfo
 					polybar-msg hook mpv 1
-					dstfy "$(trackget) -> $(title)"
+					dstfy "$(tracks) Files loaded"
 					declare -x scopeold="$(playlist)"
 				fi
 			fi
 		fi
 	else
-		polybar-msg hook mpv 1
 		mp -stop
+		# poly.title > /tmp/mpinfo
+		polybar-msg hook mpv 1
+		dstfy "mp sock stoped"
 		exit 5
 	fi
 }
 
-baseplyad ()  #
-{
-	base
-	case $@ in
-	null ) return 0 ;;
-	event ) return 0 ;;
-	force )
-	    : > $mplistyad
-	    i=1
-	    while read line; do
-			echo "$i\n$line" >> $mplistyad
-			i=$(( $i + 1 ))
-	    done < $mptitles;;
-	removed ) 
-	 	: > $mplistyad
-	    i=1
-	    while read line; do
-			echo "$i\n$line" >> $mplistyad
-			i=$(( $i + 1 ))
-	    done < $mptitles;;
-	esac
-}
-
 basepl ()  
 {
-	case "$@" in
-		null ) return $(( 0 + 0 ));;
-		force || event || ajuste )
-			< $mpurls > $mpurlsold
-			loaded url > $mpurls;;
-		* ) return 0;;
-	esac
-	
-	declare -x fmpurlold=$(wc -l < $mpurlsold|grep -Ev '^$')
-	declare -x fmpurl=$(wc -l < $mpurls|grep -Ev '^$')
+	[[ -n $@ ]] && \
+		{
+			case "$@" in
+				force || event )
+					< $mpurls > $mpurlsold
+					loaded url > $mpurls;;
+				* ) return 0;;
+			esac
+			
+			fmpurlold=$(wc -l < $mpurlsold|grep -Ev '^$')
+			fmpurl=$(wc -l < $mpurls|grep -Ev '^$')
 
-	case "$@" in
-		null ) return 0 ;;
-		force )
-		    :> $mptitles
-		    i=0
-		    j=1
-		    while read line; do
-				filename="$(filenameN $i)"
-				if [[ -e "$filename" && ! "$filename" =~ ".m3u" ]]; then
-					title=$(echo "$line" |sed 's/.*\///g;s/\///g')
-					echo $title >> $mptitles
-					echo "$j\n$title" >> $mplistyad
-				elif [[ -e "$filename" && "$filename" =~ ".m3u" ]]; then
-					title=$(< "$filename" |sed -n '2p'|sed 's/.*\,\ //g')
-					echo $title >> $mptitles
-					echo "$j\n$title" >> $mplistyad
-				else
-					titlepl="$(loaded title $j)"
-					[[ -z $titlepl ]] && titlepl="$(loaded title.iptv $j)"
-					filenamepl="$(loaded url $j)"
-					[[ -z $filenamepl ]] && filenamepl="$(loaded url.iptv $j)"
-					if [[ -z "$titlepl" ]]; then
-						title="$(get.title "$line")"
-						[[ -z $title ]] && title=$filename
-					else
-						if [[ "$filenamepl" == "$filename" ]]; then
-							title=$titlepl
+			case "$@" in
+				force )
+				    : > $mptitles
+				    j=1
+				    while read line; do
+						filename="$line"
+						if [[ -e "$filename" && ! "$filename" =~ ".m3u" ]]; then
+							title=$(echo "$line" |sed 's/.*\///g;s/\///g')
+						elif [[ -e "$filename" && "$filename" =~ ".m3u" ]]; then
+							title=$(< "$filename" |sed -n '2p'|sed 's/.*\,\ //g')
 						else
-							title="Verificar filenamepl != filename"
-						fi
-					fi
-					echo $title >> $mptitles
-					echo "$j\n$title" >> $mplistyad
-				fi
-				i=$(( $i + 1 ))
-				j=$(( $j + 1 ))
-		    done < $mpurls
-		    dstfy " $(< $mptitles | wc -l) -> Files loaded" ;;
-		event )
-		    if [[ $fmpurl -gt $fmpurlold ]]; then
-				for (( i=$(( $fmpurlold + 1 )); i<=$fmpurl; i++ ))
-				{
-					filename=$(loaded url $i)
-					if [[ -e "$filename" && ! "$filename" =~ ".m3u" ]]; then
-						title=$(echo "$filename" |sed 's/.*\///g;s/\///g')
-						<<< $title >> $mptitles
-						echo "$j\n$title" >> $mplistyad
-					elif [[ -e "$filename" && "$filename" =~ ".m3u" ]]; then
-						title=$(< "$filename" |sed -n '2p'|sed 's/.*\,\ //g')
-						echo $title >> $mptitles
-						echo "$j\n$title" >> $mplistyad
-					else
-						title=$(titleN $(( $i - 1 )))
-						if [[ $title == "null" ]]; then
-							titlepl=$(loaded title $i)
-							if [[ -z "$titlepl" ]]; then
-								title=$(get.title "$(< $mpurls|sed -n ''$i'p')")
-								echo $title >> $mptitles
-								echo "$i\n$title" >> $mplistyad
+							titlepl="$(loaded title $j)"
+							if [[ "$titlepl" == "null" || -z "$titlepl" ]]; then
+								title="$(get.title "$filename")"
+								[[ -z $title ]] && title="$filename"
 							else
-								echo $titlepl >> $mptitles
-								echo "$i\n$titlepl" >> $mplistyad
+								title="$titlepl"
 							fi
-						else
-							echo $title >> $mptitles
-							echo "$i\n$title" >> $mplistyad
 						fi
-					fi
-					dstfy " $(trackget) -> $title loaded "
-				}
-		    else
+						print $title >> $mptitles
+						print "$j\n$title" >> $mplistyad
+						j=$((j+1))
+				    done < $mpurls
+				    dstfy "$(printf %b "$(tracks) -Files Add/Loaded\nPlaying -> $(trackget) $(sed -n ''$(trackget)'p' $mptitles)")";;
+				event )
+				    if [[ $fmpurl -gt $fmpurlold ]]; then
+						for (( i=$(( $fmpurlold + 1 )); i<=$fmpurl; i++ ))
+						{
+							filename=$(loaded url $i)
+							if [[ -e "$filename" && ! "$filename" =~ ".m3u" ]]; then
+								title=$(echo "$filename" |sed 's/.*\///g;s/\///g')
+							elif [[ -e "$filename" && "$filename" =~ ".m3u" ]]; then
+								title=$(< "$filename" |sed -n '2p'|sed 's/.*\,\ //g')
+							else
+								titlepl="$(loaded title $i)"
+								if [[ "$titlepl" == "null" || -z "$titlepl" ]]; then
+									title="$(get.title "$filename")"
+									[[ -z $title ]] && title="$filename"
+								else
+									title="$titlepl"
+								fi
+							fi
+							print $title >> $mptitles
+							print "$j\n$title" >> $mplistyad
+						}
+						dstfy "$(printf %b "$(tracks) $title ...Loaded\nPlaying -> $(trackget) $(sed -n ''$(trackget)'p' $mptitles)")"
+				    else
+						return 0
+				    fi;;
+				   * ) 
+						return 0 ;;
+			esac		
+		} || \
+			{
 				return 0
-		    fi;;
-		ajuste )
-		    dstfy "AJUSTANDO PLAYLIST"
-		    : > $mptitles
-		    i=0
-		    j=1
-			while read line; do
-				filename=$(filenameN $i)
-				if [[ -e "$filename" && ! "$filename" =~ ".m3u" ]]; then
-					title=$(echo "$line" |sed 's/.*\///g;s/\///g')
-					echo $title >> $mptitles
-					echo "$j\n$title" >> $mplistyad
-				elif [[ -e "$filename" && "$filename" =~ ".m3u" ]]; then
-					title=$(< "$filename" |sed -n '2p'|sed 's/.*\,\ //g')
-					echo $title >> $mptitles
-					echo "$j\n$title" >> $mplistyad
-				else
-					# titlepl=$(loaded title $j)
-					filenamepl=$(loaded url $j)
-					title=$(get.title $filenamepl)
-					echo $title >> $mptitles
-					echo "$j\n$title" >> $mplistyad
-				fi
-				i=$(( $i + 1 ))
-				j=$(( $j + 1 ))
-		    done < $mpurls;;
-		   * ) return 0 ;;
-	esac
+			}
 }
