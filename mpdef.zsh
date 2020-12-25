@@ -1,20 +1,8 @@
 #!/bin/zsh
-#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
-#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
-modi.def ()  #
-{
-	case $@ in 
-		console ) echo OK ;;
-		terminal ) echo OK ;;
-		yad ) echo OK ;;
-		rofi ) echo OK ;;
-		* ) modi="terminal"
-	esac
-}
-#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
+
 sock.ativo ()  #
 {
-	[[ -z $(loaded url 2>/dev/null) ]] && return 1 || return 0
+	[[ -z $(loadeds url 2>/dev/null) ]] && return 1 || return 0
 }
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 get.socks ()
@@ -29,10 +17,10 @@ get.title () #
 
 search ()
 {
-  
+
 	main ()  #
 	{
-		
+
 		base="$(youtube-dl --get-title --get-id --get-duration "ytsearch$qt_return:"$@"" |xargs -0)"
 
 		control=1
@@ -49,11 +37,11 @@ search ()
 					control=$(($control+1))
 					Titles+=([$controllerT]=$element)
 					controllerT=$(($controllerT+1)) ;;
-				2 ) 
+				2 )
 					control=$(($control+1))
 					IDs+=([$controllerI]="https://www.youtube.com/watch?v=$element")
 					controllerI=$(($controllerI+1)) ;;
-				3 ) 
+				3 )
 					control=1
 					Durations+=([$controllerD]=$element)
 					controllerD=$(($controllerD+1)) ;;
@@ -68,7 +56,7 @@ search ()
 			done
 		else
 			 echo "$(tput sgr0; tput setaf 7; tput setab 0; tput bold;) $(printf '%-'$(($(($(($COLUMNS-8))/4))*2))'s' "${Titles[1][1,$(($(($(($COLUMNS-8))/4))*2))]}") $(printf '%8s' "$Durations") $(tput sgr0; tput setaf 12; tput setab 0;) $(printf '%'$(($(($COLUMNS-8))/4))'s' "${IDs}") $(tput sgr0;)"
-		fi	  
+		fi
 	}
 
 
@@ -137,62 +125,59 @@ format.url () #Argumentos
 }
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 
-loaded ()
+loadeds ()
 {
 	unset url title id
 
 	plistCarregada="$(playlist)"
 
 	<<< $plistCarregada| sed 's/,/\n/g'|grep -q '"title":' && \
-	{
-		for x in ${(f)"$(grep -Ev '^$|error:sucess|current:true|playing:true|id:|title:' <<< "$(sed 's/{\|}\|\[\|\].*\|\"//g;s/,/\n/g;s/data://g;s/filename://g' <<< "$plistCarregada")")"}
 		{
-			url+=("$x")
-		}
-		for x in ${(f)"$(grep -Ev '^$|error:sucess|current:true|playing:true|id:|filename:' <<< "$(sed 's/{\|}\|\[\|\].*\|\"//g;s/,/\n/g;s/data://g;s/title://g' <<< "$plistCarregada")")"}
-		{
-			title+=("$x")
-		}
-		[[ $#url[@] -ne $#title[@] ]] && \
-			{
-				for i in {$(($#url[@] - ($#url[@] - $#title[@])))..$#url[@]}
-				{
-					[[ -z "$(sed -n ''$i'p' /tmp/mptitlesDefault)" ]] && title+=("$(sed -n ''$i'p' /tmp/mptitlesDefault)") || title+=("null")
-				}
-			}
-	} || \
-		{
-			control=1
 			for x in ${(f)"$(grep -Ev '^$|error:sucess|current:true|playing:true|id:|title:' <<< "$(sed 's/{\|}\|\[\|\].*\|\"//g;s/,/\n/g;s/data://g;s/filename://g' <<< "$plistCarregada")")"}
 			{
 				url+=("$x")
-				titlemptitles=$(sed -n ''$control'p' $mptitles)
-				[[ -z $titlemptitles ]] && title+=("null") || title+=("$titlemptitles")
-				control=$((control+1))
 			}
-		}
-
+			for x in ${(f)"$(grep -Ev '^$|error:sucess|current:true|playing:true|id:|filename:' <<< "$(sed 's/{\|}\|\[\|\].*\|\"//g;s/,/\n/g;s/data://g;s/title://g' <<< "$plistCarregada")")"}
+			{
+				title+=("$x")
+			}
+			[[ $#url[@] -ne $#title[@] ]] && \
+				{
+					for i in {$(($#url[@] - ($#url[@] - $#title[@])))..$#url[@]}
+					{
+						[[ -z "$(sed -n ''$i'p' /tmp/mptitlesDefault)" ]] && title+=("$(sed -n ''$i'p' /tmp/mptitlesDefault)") || title+=("null")
+					}
+				}
+		} || \
+			{
+				control=1
+				for x in ${(f)"$(grep -Ev '^$|error:sucess|current:true|playing:true|id:|title:' <<< "$(sed 's/{\|}\|\[\|\].*\|\"//g;s/,/\n/g;s/data://g;s/filename://g' <<< "$plistCarregada")")"}
+				{
+					url+=("$x")
+					titlemptitles=$(sed -n ''$control'p' $mptitles)
+					[[ -z $titlemptitles ]] && title+=("null") || title+=("$titlemptitles")
+					control=$((control+1))
+				}
+			}
 	[[ $# -gt 1 ]] && \
 		{
 			case $1 in
 				url* )
 					print -l $url |sed -n ''$2'p';;
-				title* ) 
+				title* )
 					print -l $title |sed -n ''$2'p';;
 			esac
 		} || \
 			{
 				case $1 in
-					url ) 
+					url )
 						print -l $url;;
-					title ) 
+					title )
 						print -l $title;;
 				esac
 			}
 }
-
-
-loadeds ()
+loadedx ()
 {
   # grep -Ev 'request_id|error":' <<< $(sed -E 's/,/\n/g;s/\{\"filename\"\://g;s/\"title\"\://g;s/\}//g;s/\]//g' /tmp/playlist)
 	case $@ in
@@ -228,6 +213,7 @@ loadeds ()
 			|sed -E 's/,$|,,$|,,,$|,,,,$//g' \
 			|grep -Ev '^$|title:' \
 			|sed 's/\,id\:.*//g' \
+			|sed 's/,,$//g' \
 			|cut -d':' -f2- ;;
 		url* )
 			playlist \
@@ -236,6 +222,7 @@ loadeds ()
 			|grep -Ev '^$|title:' \
 			|sed 's/\,id\:.*//g' \
 			|cut -d':' -f2- \
+			|sed 's/,,$//g' \
 			|sed -n ''$2'p' ;;
 		title )
 			playlist \

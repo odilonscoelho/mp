@@ -1,6 +1,6 @@
 #!/bin/zsh
 # verificar pois pode exminir muitos comandos clear, atualmente usado só em local file 'lfs'.
-add () 
+add ()
 {
 	if sock.ativo; then
 		print "add"
@@ -16,7 +16,7 @@ add ()
 	fi
 }
 
-add.yad () 
+add.yad ()
 {
 	if sock.ativo; then
 		# dstfy "YADs requisitado"
@@ -57,15 +57,15 @@ filenameN ()
 	echo '{ "command": ["get_property", "playlist/'"$@"'/filename"], "request_id": 0}' |socat - $sock|sed -E 's/.*data":|,".*|\"//g' #nome/url do arquivo na pos $2 da playlist #Ajuste
 }
 
-filename () 
+filename ()
 {
 	echo '{ "command": ["get_property", "filename"], "request_id": 0}' |socat - $sock |sed -E 's/.*data":|,".*|"//g'
 }
 
-format () 
+format ()
 {
 	if [[ -z $format ]]; then
-		url="$(loaded url $(trackget))"
+		url="$(loadeds url $(trackget))"
 		format.url
 		echo "set ytdl-format $format" |socat - $sock
 		reload
@@ -75,13 +75,13 @@ format ()
 	fi
 }
 
-commands () 
+commands ()
 {
 	echo '{ "command": ["get_property", "command-list"], "request_id": 0}' |socat - $sock |sed -E 's/\{*:|,.*//'
 }
 
-next () 
-{ 
+next ()
+{
 	echo '{ "command": ["playlist-next", "force"], "request_id": 0}' |socat - $sock
 }
 
@@ -100,12 +100,12 @@ trackgo () #
 	echo '{ "command": ["set_property", "playlist-pos-1", '"$cod"'], "request_id": 0}' |socat - $sock
 }
 
-track () 
+track ()
 {
 	echo '{ "command": ["set_property", "playlist-pos-1", '"$1"'], "request_id": 0}' |socat - $sock
 }
 
-trackget () 
+trackget ()
 {
 	echo '{ "command": ["get_property", "playlist-pos-1"], "request_id": 0}' |socat - $sock |sed -E 's/.*data":|,".*|\"//g;s/\{request_id\:0//g;s/\"playing\"\:true\}//g'
 }
@@ -120,8 +120,8 @@ title ()
 	echo '{ "command": ["get_property", "media-title"], "reqsuest_id": 0}' |socat - $sock |sed -E 's/.*data":|,".*|"//g' #titulo atual Funcional usado na polybar
 }
 
-titleN () 
-{ 
+titleN ()
+{
 	echo '{ "command": ["get_property_string", "playlist/'"$@"'/media-title"], "request_id": 0}' |socat - $sock|sed -E 's/.*data":|,".*|\"//g' #titulo do arquivo na pos $2 da playlist #Ajuste
 }
 
@@ -155,11 +155,11 @@ removeyad () #Argumentos
 }
 
 remaining () #
-{ 
+{
 	echo '{ "command": ["set_property", "playtime-remaining"], "request_id": 0}' |socat - $sock #time restante Verificar
 }
 reload ()
-{ 
+{
 	track "$(trackget)"
 }
 
@@ -184,7 +184,12 @@ playlist.clear ()
 }
 change () #
 {
-	echo '"change_list", "playlist/'$1'/title, set, '$2'"' |socat - $sock  
+	echo '"change_list", "playlist/'$1'/title, set, '$2'"' |socat - $sock
 }
-
-
+teste () #
+{
+	# echo '{ "command": ["get_property", "metadata/list/'$@'/value"], "reqsuest_id": 0}' |socat - $sock
+	echo '{ "command": ["get_property", "metadata/by-key/1"], "reqsuest_id": 0}' |socat - $sock
+}
+# track-list/N/albumart
+# |socat - $sock |sed -E 's/.*data":|,".*|"//g' #titulo atual Funcional usado na polybar

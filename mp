@@ -105,7 +105,7 @@ for x in $ARGUMENTOS[@]
 	esac
 }
 # Confirma se a solicitaçao de comando é a requisição de informações sobre os socks abertos, caso seja não atribui temp files a essa solicitação:
-if [[ ! $cmd =~ "get.socks" ]]; then	
+if [[ ! $cmd =~ "get.socks" ]]; then
 	[[ -z $sock ]] && declare -x sock=/tmp/mpvsocketDefault
 	[[ -z $mpurls ]] && declare -x mpurls=/tmp/mpurlsDefault
 	[[ -z $mpurlsold ]] && declare -x mpurlsold=/tmp/mpurlsoldDefault
@@ -114,7 +114,7 @@ if [[ ! $cmd =~ "get.socks" ]]; then
 	[[ -z $tmpcod ]] && declare -x tmpcod="/tmp/mpcodDefault"
 	[[ -z $mpid ]] && declare -x mpid="/tmp/mpidDefault"
 else
-	get.socks || print "Não há socks ativos!" 2>/dev/null
+	get.socks || print "Não há socks ativos!"
 	exit 0
 fi
 # Valida os argumentos soltos que podem ser arquivos ou urls para reprodução e atribui ao array correto para execução:
@@ -143,7 +143,7 @@ fi
 if [[ -n $m3us ]]; then
 	add $m3us[@]
 	mp -mpd start
-fi		
+fi
 if [[ -n $files ]]; then
 	add $files[@]
 	mp -mpd start
@@ -151,10 +151,10 @@ fi
 if [[ -n $yads ]]; then
 	add ${${(s:!:)yads}[@]}
 	mp -mpd start
-fi	
+fi
 # Para xlip:
 if [[ -n $clip ]]; then
-	case $clip in 
+	case $clip in
 		https://* ) add "$clip";mp -mpd start;;
 		http://* ) add "$clip";mp -mpd start;;
 		* ) <<< "Não foi possível resolver '"$clip"'" ;;
@@ -169,5 +169,5 @@ fi
 if sock.ativo; then
 	exit 0
 else
-	rm $sock $mpurls $mpurlsold $mptitles $mplistyad $tmpcod $mpid 2>/dev/null
+	rm $sock $mpurls $mpurlsold $mptitles $mplistyad $tmpcod $mpid /tmp/thumb.jpg 2>/dev/null
 fi

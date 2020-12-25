@@ -83,7 +83,7 @@ poly.title ()   #
 						printf '%-20s %10s' "  $(title|tail -c 12)" "| %{F$mprefixcolor}%{F-} $trck |  "
 					else
 						trck=$(trackget)
-						printf '%-20s %10s' "  $(title|tail -c 12)" "| %{F$mprefixcolor}%{F-} $trck |  "					
+						printf '%-20s %10s' "  $(title|tail -c 12)" "| %{F$mprefixcolor}%{F-} $trck |  "
 					fi
 				else
 					printf '%-20s %10s' " ... " "|  |  "
@@ -104,18 +104,14 @@ dstfy ()   #
 help ()
 {
 	<<- doc
-
 		`tput rev; tput bold`MP - Media Player with MPV `tput setab 1;`®`tput sgr0;tput rev;tput bold`AllScripts`tput setab 1;`®`tput sgr0;`
 	Por `tput bold;`Odilon Coelho`tput sgr0;`
 	odilon.coelho@oulook.com
 	@t.me/losaoall
-
 	$(tput bold)$(tput setaf 3)USO:$(tput sgr0;) 	
 	
 	`tput bold`mp [options] <files/urls>`tput sgr0`
-
 	`tput bold`Options:`tput sgr0`
-
 	`tput bold`-bpl 	-basepl`echo -e '\t\t'` - Atualiza a base de dados para playlists (terminal)
 	`tput bold`-bply 	-baseplyad`echo -e '\t'` - Atualiza a base de dados para playlistyad *deprecate
 	`tput bold`-c 	-controls`echo -e '\t'` - Abre controls em yad
@@ -144,6 +140,5 @@ help ()
 	`tput bold`-tt 	-title `echo -e '\t\t'` - Retorna o título do arquivo/url 'N' solicitada (terminal)
 	`tput bold`-u 	-url `echo -e '\t\t'` - Retorna o nome do arquivo/url 'N' solicitada (terminal)
 	`tput bold`-v 	-vol `echo -e '\t\t'` - Seta o volume do mpv no valor informado`tput sgr0`
-
 	doc
 }

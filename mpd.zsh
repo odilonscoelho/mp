@@ -17,15 +17,15 @@ mpd ()
 		stop )
 			kill "${(f)$(mpd.pids 'MPD')[@]}";;
 		* )
-			msg "Options: 
+			msg "Options:
 			mp -mpd start
 			mp -mpd stop";;
-		esac
+	esac
 }
 val ()  #
 {
 	case ${#$(get.socks)} in
-		0 ) limit=3 ;; 
+		0 ) limit=3 ;;
 		1 ) limit=3 ;;
 		2 ) limit=5 ;;
 		3 ) limit=6 ;;
@@ -35,95 +35,97 @@ val ()  #
 	if [[ $(wc -l <<< `mpd.pids "$@"`) -le $limit ]];then
 		case $@ in
 			MPD )
-				declare -x statusx="start"
-				start &>/dev/null & ;;
+				statusx="start"
+				start &>/tmp/mplog &
+				exit 0;;
 			BASEPL )
-				return 0
+				return 0;;
 		esac
 	else
 		case $@ in
 			MPD )
 				exit 0 ;;
 			BASEPL )
-				dstfy "$@ RECHAÇADA!!!" 
+				dstfy "$@ RECHAÇADA!!!"
 				return 1 ;;
 		esac
 	fi
 }
-start ()  # 
+start ()  #
 {
 	while true; do
 		backend
-		[[ $? -ne 5 ]] && 
-			{ 
-				declare -x statusx="restart"; interval 
+		[[ $? -ne 5 ]] && \
+			{
+				interval &&
 			} || \
 				{
-					mp -stop
-					polybar-msg hook mpv 1
+					polybar-msg hook mpv 1 &>/dev/null
+					dstfy "mp sock stoped"
+					break
 				}
 	done
+	exit 0
 }
-backend ()  # 
+backend ()  #
 {
 	if sock.ativo; then
 		if [[ ${statusx} == "start" ]]; then
-			declare -x scopeold="$(playlist)"
+			statusx="restart"
+			scopeold="$(playlist)"
+			[[ -e /tmp/mpbasepllock ]] && wait $(< /tmp/mpbasepllock)
 			basepl force
-			# poly.title > /tmp/mpinfo
-			polybar-msg hook mpv 1
+			print $! > /tmp/mpbasepllock
 			dstfy "$(tracks) Files Add
 			Play $(title)"
+			polybar-msg hook mpv 1 &>/dev/null
 		else
 			if [[ "$scopeold" != "$(playlist)" ]]; then
 				if [[ $(wc -c <<< "$scopeold") != "$(playlist |wc -c)" ]]; then
-					basepl event &&
-					# poly.title > /tmp/mpinfo
-					polybar-msg hook mpv 1
-					declare -x scopeold="$(playlist)"
+					[[ -e /tmp/mpbasepllock ]] && wait $(< /tmp/mpbasepllock)
+					basepl event
+					print $! > /tmp/mpbasepllock
+					polybar-msg hook mpv 1 &>/dev/null
+					scopeold="$(playlist)"
 				else
-					# poly.title > /tmp/mpinfo
-					polybar-msg hook mpv 1
-					dstfy "$(tracks) Files loaded"
-					declare -x scopeold="$(playlist)"
+					polybar-msg hook mpv 1 &>/dev/null
+					dstfy "$(trackget) $(loaded title $(trackget))"
+					scopeold="$(playlist)"
 				fi
 			fi
 		fi
 	else
-		mp -stop
-		# poly.title > /tmp/mpinfo
-		polybar-msg hook mpv 1
-		dstfy "mp sock stoped"
-		exit 5
+		interval &&
+		if sock.ativo; then; backend; else; polybar-msg hook mpv 1 &>/dev/null; return 5; fi
 	fi
 }
-
-basepl ()  
+basepl ()
 {
 	[[ -n $@ ]] && \
 		{
-			case "$@" in
-				force || event )
-					< $mpurls > $mpurlsold
-					loaded url > $mpurls;;
-				* ) return 0;;
+			case "$statusx" in
+				restart )
+					< $mpurls >| $mpurlsold
+					loadeds url >| $mpurls;;
+				start )
+					: > $mpurls
+					loadeds url > $mpurls;;
 			esac
-			
+
 			fmpurlold=$(wc -l < $mpurlsold|grep -Ev '^$')
 			fmpurl=$(wc -l < $mpurls|grep -Ev '^$')
-
 			case "$@" in
 				force )
 				    : > $mptitles
 				    j=1
 				    while read line; do
 						filename="$line"
-						if [[ -e "$filename" && ! "$filename" =~ ".m3u" ]]; then
+						if [[ -e "~/$filename" || -e "$filename" && ! "$filename" =~ ".m3u" ]]; then
 							title=$(echo "$line" |sed 's/.*\///g;s/\///g')
-						elif [[ -e "$filename" && "$filename" =~ ".m3u" ]]; then
+						elif [[ -e "~/$filename" || -e "$filename" && "$filename" =~ ".m3u" ]]; then
 							title=$(< "$filename" |sed -n '2p'|sed 's/.*\,\ //g')
 						else
-							titlepl="$(loaded title $j)"
+							titlepl="$(loadeds title $j)"
 							if [[ "$titlepl" == "null" || -z "$titlepl" ]]; then
 								title="$(get.title "$filename")"
 								[[ -z $title ]] && title="$filename"
@@ -135,18 +137,22 @@ basepl ()
 						print "$j\n$title" >> $mplistyad
 						j=$((j+1))
 				    done < $mpurls
-				    dstfy "$(printf %b "$(tracks) -Files Add/Loaded\nPlaying -> $(trackget) $(sed -n ''$(trackget)'p' $mptitles)")";;
+				    rm /tmp/mpbasepllock
+				    dstfy "$(printf %b "$(tracks) -Files Add/Loaded\nPlaying -> $(trackget) $(sed -n ''$(trackget)'p' $mptitles)")"
+				    interval &&
+				    interval &&
+				    polybar-msg hook mpv 1;;
 				event )
 				    if [[ $fmpurl -gt $fmpurlold ]]; then
 						for (( i=$(( $fmpurlold + 1 )); i<=$fmpurl; i++ ))
 						{
-							filename=$(loaded url $i)
-							if [[ -e "$filename" && ! "$filename" =~ ".m3u" ]]; then
+							filename=$(loadeds url $i)
+							if [[ -e "~/$filename" || -e "$filename" && ! "$filename" =~ ".m3u" ]]; then
 								title=$(echo "$filename" |sed 's/.*\///g;s/\///g')
-							elif [[ -e "$filename" && "$filename" =~ ".m3u" ]]; then
+							elif [[ -e "~/$filename" || -e "$filename" && "$filename" =~ ".m3u" ]]; then
 								title=$(< "$filename" |sed -n '2p'|sed 's/.*\,\ //g')
 							else
-								titlepl="$(loaded title $i)"
+								titlepl="$(loadeds title $i)"
 								if [[ "$titlepl" == "null" || -z "$titlepl" ]]; then
 									title="$(get.title "$filename")"
 									[[ -z $title ]] && title="$filename"
@@ -157,13 +163,15 @@ basepl ()
 							print $title >> $mptitles
 							print "$j\n$title" >> $mplistyad
 						}
+						rm /tmp/mpbasepllock
+						polybar-msg hook mpv 1 &>/dev/null
 						dstfy "$(printf %b "$(tracks) $title ...Loaded\nPlaying -> $(trackget) $(sed -n ''$(trackget)'p' $mptitles)")"
 				    else
 						return 0
 				    fi;;
-				   * ) 
+				   * )
 						return 0 ;;
-			esac		
+			esac
 		} || \
 			{
 				return 0
