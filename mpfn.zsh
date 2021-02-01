@@ -1,48 +1,22 @@
 #!/bin/zsh
-#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
-#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
-#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 save ()
 {
+	
 	# File="$(yad --text="Select files....$\_>" --file --save)"
-	select.file save |read file
+	[[ -z $@ ]] && { select.file save |read file } || file=$@
 	[[ -z $file ]] && msg "Operação cancelada ! PLaylist não Salva!"
 	[[ -d $file ]] && msg "Operação cancelada ! PLaylist não Salva! Foi selecionado apenas o diretório"
-	t=1;while read line; do; export title[$t]=$line;t=$t+1;done < $mptitles
-	echo "#EXTM3U" >| $file
+	echo "#EXTM3U" > $file
 	i=1
-	while read line
-	do
-		echo "#EXTINF:'" "', $line\n$(< $mpurls| sed -n ''$i'p')" >> $file &&
+	while read line; do
+		print "#EXTINF:\" \", ${${(s:|:)line}[3]}\n${${(s:|:)line}[2]}" >> $file &&
+		#printf %b "#EXTINF:'" "', ${{(s:|:)line}[3]}\n$HOME/${{(s:|:)line}[2]}" >> $file &&
 		i=$(( $i + 1 ))
-	done < $mptitles
+	done < $mpurls
 	dstfy "$file"
 }
-
-add.to ()
-{
-	if [[ $1 =~ "essa" ]]; then
-		url=$(loaded url "$(trackget)")
-		title=$(loaded title "$(trackget)")
-	else
-		url=$(loaded url $1)
-		url=$(loaded title $1)
-	fi
-	if [[ -z $2 ]]; then
-		file="$(select.file save)"
-		[[ -z $file ]] && msg "Operação cancelada ! PLaylist não Salva!"
-		[[ -d $file ]] && msg "Operação cancelada ! PLaylist não Salva! Foi selecionado apenas o diretório"
-	else
-		file="$2"
-	fi
-	[[ -z $title ]] && title=$(loaded title.iptv $1)
-	[[ -z $title ]] && title=$(get.title $1)
-	
-	echo "#EXTINF:' ', $title\n"$url"" >> $file
-	exit 0
-}
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
-select.file () 
+select.file ()
 {
 	[[ -z $1 ]] && \
 		file="$(yad --separator=\! --text="Select files....$ _>" --file --multiple --geometry=600x800)" && \
@@ -52,7 +26,7 @@ select.file ()
 #--------------------------------------------------\---------------------------------------------------------------------------------------------------------------------------------------------------#
 play.best ()  #
 {
-	[[ -n $(loaded url) ]] && add.url || rm -f $sock && mpv --x11-name="$new_class" $url --input-ipc-server=$sock &
+	[[ -n $(loadedx) ]] && add.url || rm -f $sock && mpv --x11-name="$new_class" $url --input-ipc-server=$sock &
 }
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 pause.toggle ()
@@ -72,73 +46,213 @@ msg () #Argumentos
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 poly.title ()   #
 {
-	if [[ ${#$(get.socks)} -gt 0 ]]; then
-		for x in $(get.socks)
-		{
-			sock=$x
-			if sock.ativo; then
-				if [[ $(playlist |sed 's/,/\n/g'|grep '"playing":true') ]]; then
-					if [[ $(echo '{ "command": ["get_property", "pause"] }' |socat - $sock |grep 'true') ]];then
-						trck=$(trackget)
-						printf '%-20s %10s' "  $(title|tail -c 12)" "| %{F$mprefixcolor}%{F-} $trck |  "
-					else
-						trck=$(trackget)
-						printf '%-20s %10s' "  $(title|tail -c 12)" "| %{F$mprefixcolor}%{F-} $trck |  "
+	if [[ $WM == "RESOLVR" ]]; then
+		limitstr=15
+		limitlbl=60
+		if [[ ${#$(get.socks)} -gt 0 ]]; then
+			for x in $(get.socks)
+			{
+				sock=$x
+				if sock.ativo; then
+					title="$(title|sed 's/\..*$//g'|tail -c 80)"
+					if [[ $#title -gt $limitstr ]];then
+						title=$(printf %"$((limitstr-3))"s "$title...")
 					fi
-				else
-					printf '%-20s %10s' " ... " "|  |  "
-					continue
+					title_formated='<span foreground="'$color4'" weight="bold" style="italic">'$title'</span>'
+					
+					if [[ $(playlist |sed 's/,/\n/g'|grep '"playing":true') ]]; then
+
+						artist="$(get.artist $(trackget))"
+
+						if [[ $#artist -gt $limitstr ]];then
+							artist=$(printf %"$((limitstr-3))"s "$artist...")
+						fi
+						
+						artist_formated='<span foreground="'$color1'" style="italic">'$artist'</span>'
+												
+						if [[ $(echo '{ "command": ["get_property", "pause"] }' |socat - $sock |grep 'true') ]];then
+							trck=$(trackget)
+							icon=" "
+							artist="$(get.artist $trck)"
+							statuS='<span foreground="'$color4'" weight="bold">'$icon'</span><span foreground="'$color1'" weight="bold">'$trck'</span>'
+							printf '%-'$((limitstr+70))'s %'$limitstr's %10s' "$title_formated," "$artist_formated" "$statuS"
+
+						else
+							trck=$(trackget)
+							icon=" "
+							artist="$(get.artist $trck)"
+							statuS='<span foreground="'$color4'" weight="bold">'$icon'</span><span foreground="'$color1'" weight="bold">'$trck'</span>'
+							printf '%-'$((limitstr+70))'s %'$limitstr's %10s' "$title_formated," "$artist_formated" "$statuS"
+						fi
+						
+					else
+						icon=" "
+						statuS='<span foreground="'$color4'" weight="bold">'$icon'</span><span foreground="'$color1'" weight="bold">'$trck'</span>'
+						printf '%'$((limitlbl/2))'s %10s' " ... " " $statuS "
+						continue
+					fi
 				fi
-			fi
-		}
-	else
-		printf '%-10s %10s' " ... " "|  |  "
+			}
+		else
+			printf '%s %s' " ... " "   " #
+		fi
+	elif [[ $WM == "bspwm" || $WM == "qtile" ]]; then
+		if [[ ${#$(get.socks)} -gt 0 ]]; then
+			for x in $(get.socks)
+			{
+				sock=$x
+				if sock.ativo; then
+					if [[ $(playlist |sed 's/,/\n/g'|grep '"playing":true') ]]; then
+						if [[ $(echo '{ "command": ["get_property", "pause"] }' |socat - $sock |grep 'true') ]];then
+							trck=$(trackget)
+							printf '%80s %10s' "$(title|sed 's/\..*$//g'|tail -c 80), %{F#E78F8F}%{T5}$(get.artist $trck)%{T0}" "%{F$mprefixcolor}%{T7}   %{T0}%{F$color4}$trck "
+
+						else
+							trck=$(trackget)
+							printf '%80s %10s' "$(title|sed 's/\..*$//g'|tail -c 80), %{F#E78F8F}%{T5}$(get.artist $trck)%{T0}" "%{F$mprefixcolor}%{T7}   %{T0}%{F$color4}$trck "
+						fi
+					else
+						printf '%s %s' " ... " "%{T7}%{F$mprefixcolor}   %{T0}%{F$color4}$(tracks) "
+						continue
+					fi
+				fi
+			}
+		else
+			printf '%s %s' " ... " "%{T7}%{F$mprefixcolor}   %{T-}%{F-}" # 
+		fi
 	fi
 }
 dstfy ()   #
 {
-	Icon="${${(f)"$(print -l $HOME/.icons/${${(s:=:)${(f)"$(< ~/.config/gtk-3.0/settings.ini)"}[3]}[2]}/apps/scalable/mpv*)"}[1]}"
-	[[ -z $@ ]] && dunstify -t 5000 -i $Icon "$(title)" || dunstify -t 5000 -i $Icon "$@"
+	[[ -z $icon ]] && { icon="${${(f)"$(print -l $HOME/.icons/${${(s:=:)${(f)"$(< ~/.config/gtk-3.0/settings.ini)"}[3]}[2]}/apps/scalable/mpv*)"}[1]}" }
+	[[ -z $@ ]] && dunstify -t 5000 -i $icon "$(title)" || dunstify -t 5000 -i $icon "$@"
 }
 
-help ()
+help () #
 {
-	<<- doc
-		`tput rev; tput bold`MP - Media Player with MPV `tput setab 1;`®`tput sgr0;tput rev;tput bold`AllScripts`tput setab 1;`®`tput sgr0;`
-	Por `tput bold;`Odilon Coelho`tput sgr0;`
-	odilon.coelho@oulook.com
-	@t.me/losaoall
-	$(tput bold)$(tput setaf 3)USO:$(tput sgr0;) 	
-	
-	`tput bold`mp [options] <files/urls>`tput sgr0`
-	`tput bold`Options:`tput sgr0`
-	`tput bold`-bpl 	-basepl`echo -e '\t\t'` - Atualiza a base de dados para playlists (terminal)
-	`tput bold`-bply 	-baseplyad`echo -e '\t'` - Atualiza a base de dados para playlistyad *deprecate
-	`tput bold`-c 	-controls`echo -e '\t'` - Abre controls em yad
-	`tput bold`-cr 	-controlsr`echo -e '\t'` - Abre controls em rofi
-	`tput bold`-console`echo -e '\t\t'` - Abre o modo console em rofi
-	`tput bold`-f 	-format`echo -e '\t\t'` - Alterar format do video/áudio do yt (terminal, console e controlsr)
-	`tput bold`-gs 	-get-socks`echo -e '\t'` - Verificar quais os nomes dos socks abertos (terminal)
-	`tput bold`-h 	-help`echo -e '\t\t'` - Esse menu de ajuda (terminal)
-	`tput bold`-mpd`echo -e '\t\t\t'` - start / stop - para iniciar ou parar o daemon (terminal e console)
-	`tput bold`-nx 	-next `echo -e '\t\t'` - Next track (terminal e console)
-	`tput bold`-p 	-pause `echo -e '\t\t'` - Toggle Pause/Play (terminal e console)
-	`tput bold`-pb 	-polybar `echo -e '\t'` - Label para módulo polybar
-	`tput bold`-pv 	-prev `echo -e '\t\t'` - Prev track (terminal e console)
-	`tput bold`-pl 	-plist `echo -e '\t\t'` - Playlist no terminal (terminal)
-	`tput bold`-plr 	-plistrofi `echo -e '\t'` - Playlist no rofi (terminal e console)
-	`tput bold`-ply 	-plistyad `echo -e '\t'` - PLaylist no yad *deprecate
-	`tput bold`-rm 	-remove `echo -e '\t'` - Remove a track informada (terminal e console).
-	`tput bold`-rmy 	-removeyad `echo -e '\t'` - Remove a track selecionada na playlist com yad
-	`tput bold`-S 	-Save `echo -e '\t\t'` - Salve a playlist atual - Requer yad
-	`tput bold`-svf 	-save-file `echo -e '\t'` - Salve a playlist com o nome informado (terminal e console)
-	`tput bold`-s 	-sock `echo -e '\t\t'` - Inicie o MP com o socket informado
-	`tput bold`-st 	-stop `echo -e '\t\t'` - Stop e clear playlist (terminal e console)
-	`tput bold`-sf 	-selfile `echo -e '\t'` - Selecionar arquivos para execução - Requer yad
-	`tput bold`-t 	-track `echo -e '\t\t'` - Vá para a track informada
-	`tput bold`-tget 	-trackget `echo -e '\t'` - Informa qual a track em execução (terminal)
-	`tput bold`-tt 	-title `echo -e '\t\t'` - Retorna o título do arquivo/url 'N' solicitada (terminal)
-	`tput bold`-u 	-url `echo -e '\t\t'` - Retorna o nome do arquivo/url 'N' solicitada (terminal)
-	`tput bold`-v 	-vol `echo -e '\t\t'` - Seta o volume do mpv no valor informado`tput sgr0`
-	doc
+    .foreground () print -P %F{foreground}"$@"%f
+    .black () print -P %F{black}"$@"%f
+    .red () print -P %F{red}"$@"%f
+    .green () print -P %F{green}"$@"%f
+    .yellow () print -P %F{yellow}"$@"%f
+    .blue () print -P %F{blue}"$@"%f
+    .magenta () print -P %F{magenta}"$@"%f
+    .cyan () print -P %F{cyan}"$@"%f
+    .white () print -P %F{white}"$@"%f
+    .bold () print -P %B"$@"%b
+    
+    .bold "`.green "Usage :"`"
+    printf %b '\n'
+    .bold "`.red "mp"` `.green "[options]"` `.blue "<files/urls>"`"
+	printf %b '\n'
+	.bold "`.green ls` `.blue "<path/*.mp3>"` `.foreground "|"` `.red mp` `.green "[options]"`"
+	printf %b '\n'
+	.bold "`.green "Options :"`"
+	printf %b "`.green "-c          --controls"`\t\t`.foreground "- Abre controls em yad (Requer Yad) "`\n"
+	printf %b "`.green "-console    --console"`\t\t`.foreground "- Abre console em modo comando (Requer Rofi) "`\n"
+	printf %b "`.green "-fmt 	    --format"`\t\t`.foreground "- Lista de formatos disp (somente urls, Requer Yad) "`\n"
+	printf %b "`.green "-fmtgo 	    --format-go <cod>"`\t`.foreground "- Altera o formato do video em execuçao (mesmo cod disponivel em -fmt/--format) "`\n"
+	printf %b "`.green "-gt         --get-thumb"`\t\t`.foreground "- Notificação com a thumb da música ou vídeo (pesquisa online, requer Dunst, Wget e yt-dl)"`\n"
+	printf %b "`.green "-mpd 	    --mpd [start/stop]"`\t`.foreground "- Toggle start/stop manual do daemon do mp (necessario para reconstruir playlist) "`\n"
+	printf %b "`.green "-next 	    --next"`\t\t`.foreground "- Next Faixa "`\n"
+	printf %b "`.green "-pause 	    --pause"`\t\t`.foreground "- Toggle Pause/Play "`\n"	
+	printf %b "`.green "-pl         --playlist"`\t\t`.foreground "- Playlist no Terminal "`\n"	
+	printf %b "`.green "-ply        --playlist-yad"`\t`.foreground "- Playlist em Yad (Requer Yad)"`\n"	
+	printf %b "`.green "-plr        --playlist-rofi"`\t`.foreground "- Playlist em Rofi (Requer Rofi)"`\n"	
+	printf %b "`.green "-prev       --prev"`\t\t`.foreground "- Prev Faixa "`\n"
+	printf %b "`.green "-pb         --polybar"`\t\t`.foreground "- Saida para modulo polybar "`\n"
+	printf %b "`.green "-sv         --save"`\t\t`.foreground "- Salvar a playlist (Requer Yad)"`\n"
+	printf %b "`.green "-sva        --save-as file.m3u"`\t`.foreground "- Salvar como a playlist (Terminal) "`\n"
+	printf %b "`.green "-sf         --select-file"`\t`.foreground "- Selecionar arquivos para reproduçao (Requer Yad) "`\n"
+	printf %b "`.green "-sc         --search"`\t\t`.foreground "- Search Videos no youtube "`\n"
+	printf %b "`.green "-s          --sock <sock>"`\t`.foreground "- Iniciar uma nova sessao com o sock fornecido "`\n"
+	printf %b "`.green "-stop       --stop"`\t\t`.foreground "- Encerra a sessao atual do mp"`\n"
+}
+
+get.artist () #
+{
+	[[ -z $url ]] && url=${${(s:|:)$(loadedx $@)}[2]}
+	if [[ -e $url ]]; then
+		case ${#${(s:/:)url}[@]} in
+			1) artist="$url";;
+			2) artist="${${(s:/:)url}[1]}";;
+			3) artist="${${(s:/:)url}[2]}";;
+			4) artist="${${(s:/:)url}[3]}";;
+			5) artist="${${(s:/:)url}[4]}";;
+			6) artist="${${(s:/:)url}[5]}";;
+			7) artist="${${(s:/:)url}[6]}";;
+			8) artist="${${(s:/:)url}[7]}";;
+			8) artist="${${(s:/:)url}[7]}";;
+		esac
+		Online=false
+	else
+		if [[ $url =~ //spankbang\|//.*videos.com ]]; then
+			artist=" "
+		elif [[ $url =~ //.*youtube ]]; then
+			artist=" "
+		else
+			artist=" "
+		fi
+		Online=true
+	fi
+	<<< $artist
+}
+
+get.thumb () 
+{
+	url=${${(s:|:)$(loadedx $@)}[2]}
+	url=${url:-${${(s:|:)$(loadedx $(trackget))}[2]}}
+	engine_search=ytsearch
+	if [[ -e $url  ]];then
+		[[ "$(file $url)" =~ "MP4" ]] && \
+			{ 
+				ffmpegthumbnailer -i $url -o /tmp/thumb.png -s 246 -q 100
+				icon=/tmp/thumb.png
+				<<< $url | sed 's/.*\///g;s/\..*$//g' |read title
+				artist=$(get.artist)
+				dstfy "artist" "$title"
+				rm /tmp/thumb.png
+				return 0
+			} || \ 
+				{ 
+					base=(${(f)"$(ffprobe "$@" 2>&1 | grep -E 'title.*|artist.*'|grep -v album |cut -d ':' -f2-)"})
+				}
+		if [[ -n $base ]]; then
+			[[ $#base -gt 1 ]] && { title=${base[1]}; artist=${base[2]} } || { title=$base; artist="$(get.artist)" }
+		else
+			<<< $url | sed 's/.*\///g;s/\..*$//g' |read title
+			artist="$(get.artist)"
+		fi
+		
+	else
+		sed -n $@'p' $mpurls |cut -d '|' -f 3 |read title
+		artist="$(get.artist)"
+	fi
+
+	[[ $Online == "true" ]] && \
+		{ search_online=$(youtube-dl --get-thumbnail "$url" 2>/dev/null) } || \
+			{ [[ $artist != acervo ]] && { search_online=$(youtube-dl --get-thumbnail "$engine_search:$artist $title" 2>/dev/null) } || { search_online="" } }
+
+	[[ -z $search_online ]] && { icon="" } || \
+			{
+				[[ $search_online =~ .jpg ]] && \
+					{
+						[[ $search_online =~ .jpg$ ]] && \
+							{
+								wget --quiet $search_online --output-document /tmp/thumb.jpg
+							} || \
+								{
+									search_online=$(sed 's/\.jpg?.*/.jpg/' <<< $search_online)
+									wget --quiet $search_online --output-document /tmp/thumb.jpg
+								}
+					} || \
+						{
+							wget --quiet $search_online --output-document /tmp/thumb.webp
+							convert /tmp/thumb.webp /tmp/thumb.jpg
+							rm /tmp/thumb.webp
+						}
+				icon=/tmp/thumb.jpg
+			}
+	dstfy "$artist" "$title"
+	rm /tmp/thumb.jpg
 }

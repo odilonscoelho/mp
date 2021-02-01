@@ -1,124 +1,106 @@
 #!/bin/zsh
-
-# Interval para mpd - daemon das info:
-interval () {sleep 1} #
 # Import das funções...
+. mp.conf
 . mpdef.zsh
 . mpc.zsh
 . mpd.zsh
 . mpfn.zsh
 . mplist.zsh
+#. mplist.local.zsh # meus themes Depur
 # Verifica se recebeu argumentos via pipe:
 if [[ -p /dev/stdin ]]; then
-	pipeArgs="$(cat -)"
+	pipeArgs=(${(f)"$(cat -)"})
 fi
-# Atribui argumentos as possibilidades de parametros pré-definidos:
-. allopts \
--bpl: -basepl: \
--bply: -baseplyad: \
--c! -controls! \
--cr! -controlsr! \
--console! \
--f! -format! \
--gs! -get-socks! \
--h! -help! \
--indice: \
--md: -modi: \
--mpd: \
--nx! -next! \
--p! -pause! -play! \
--pb! -polybar! \
--pv! -prev! \
--pl! -plist: \
--plr! -plistrofi! \
--ply: -plistyad: \
--rm: -remove: \
--rmy! -removeyad! \
--S! -Save! \
--svf: -save-file: \
--s: -sock: \
--st! -stop! \
--sf! -selfile! \
--search! \
--t: -track: \
--tgo! -trackgo! \
--tget! -trackget! \
--tt: -title: \
--u: -url: \
--v: -vol: \
--x! -xclip! \
--tn: -titlen: \
--cmd: \
-$@
-# Refuga os parametros que foram usados para indicar a atribuição de parametro=argumento:
-for i in $@
+# Tratativa de argumentos:
+args=("-cmd" "--cmd" "--format-go" "-fmtgo" "--indice" "-indice" "--mpd" "-mpd" "--remove" "-rm" "--save-as" "-sas""-s" "--sock" "--source-file" "-sfile" "--track" "-track" "--title-n" "-tn" "--url-n" "-un" "--vol" "-v")
+
+bool=("--controls" "-c" "--controlsr" "-cr" "--console" "-console" "--format" "-fmt" "--get-socks" "-gs" "--get-thumb" "-gt" "--help" "-h" "--next" "-next" "--pause" "-pause" "--playlist" "-pl" "--playlist-rofi" "-plr" "--playlist-yad" "-ply" "--prev" "-prev" "--polybar" "-pb" "--save" "-sv" "--search" "-search" "--select-file" "-sf" "--stop" "-stop" "--track-get" "-tget" "--title" "-title" "--xclip" "-x")
+
+for arg in $@
 {
-	[[ "$ARGREFUSED" =~ "$i" ]] && shift
+	(( control = control + 1 ))
+
+	nextArgv="${(P)$((control+1))}"
+
+	if [[  $args =~ $arg ]];then
+		for ARG in $args[@]
+		{
+			[[ "$ARG" == "$arg" ]] && { read ${arg//-/} <<< $nextArgv; ignoreds+=($nextArgv); break }
+		}
+	elif [[ $args =~ ${${(s:=:)arg}[1]} ]];then
+		for ARG in $args[@]
+		{
+			[[ "$ARG" == "${${(s:=:)arg}[1]}" ]] && { read "${${(s:=:)${arg//-/}}[1]}" <<< "${${(s:=:)arg}[2,-1]}"; ignoreds+=($arg); break }
+		}
+	fi
+
+	if [[ $bool =~ $arg ]];then
+	    for ARG in $bool[@]
+	    {
+	        [[ "$ARG" == "$arg" ]] && { read "${arg//-/}" <<< "true"; ignoreds+=($arg) }
+	    }
+	fi
+	
+	[[ "$ignoreds" =~ "$arg" ]] && continue || urls+=("$arg")
 }
-# Atribui ação correspondente a cada possibilidade de parametro de entrada, onde é requirido valores $x é o valor do argumento passado como parametro:
-for x in $ARGUMENTOS[@] 
-{
-	case $x in
-		$ARGUMENTOS[sock] || $ARGUMENTOS[s] ) 
-			declare -x sock="/tmp/mpvsocket$x"
-		 	declare -x mpurls="/tmp/mpurls$x"
-		 	declare -x mpurlsold="/tmp/mpurlsold$x"
-		 	declare -x mptitles="/tmp/mptitles$x"
-		 	declare -x mplistyad="/tmp/plistyad$x"
-		 	declare -x tmpcod="/tmp/mpcod$x"
-		 	declare -x mpid="/tmp/mpid$x" ;;
-		$ARGUMENTOS[basepl] || $ARGUMENTOS[bpl] ) cmd+=(basepl $x) ;;
-		$ARGUMENTOS[baseplyad] || $ARGUMENTOS[bply] ) cmd+=(baseplyad $x) ;;
-		$ARGUMENTOS[console] ) cmd+=(console) ;;
-		$ARGUMENTOS[controls] || $ARGUMENTOS[c] ) cmd+=(controls) ;;
-		$ARGUMENTOS[controlsr] || $ARGUMENTOS[cr] ) cmd+=(controls.rofi) ;;
-		$ARGUMENTOS[format] || $ARGUMENTOS[f] ) cmd+=(format) ;;
-		$ARGUMENTOS[help] || $ARGUMENTOS[h] ) cmd+=(help) ;;
-		$ARGUMENTOS[getsocks] || $ARGUMENTOS[gs] ) cmd+=(get.socks) ;;
-		$ARGUMENTOS[indice] ) cmd+=(indice.selected $x) ;;
-		$ARGUMENTOS[mpd] ) cmd+=(mpd "$x") ;;
-		$ARGUMENTOS[modi] || $ARGUMENTOS[m] ) modi.def $x ;;
-		$ARGUMENTOS[next] || $ARGUMENTOS[nx] ) cmd+=(next $x) ;;
-		$ARGUMENTOS[prev] || $ARGUMENTOS[pv] ) cmd+=(prev $x) ;;
-		$ARGUMENTOS[play] || $ARGUMENTOS[pause] || $ARGUMENTOS[p] ) cmd+=(pause.toggle) ;;
-		$ARGUMENTOS[polybar] || $ARGUMENTOS[pb] ) cmd+=(poly.title) ;;
-		$ARGUMENTOS[pl] ) cmd+=(plist);;
-		$ARGUMENTOS[plist] ) cmd+=(plist $x);;
-		$ARGUMENTOS[plistrofi] || $ARGUMENTOS[plr] ) cmd+=(plistrofi null) ;;
-		$ARGUMENTOS[plistyad] || $ARGUMENTOS[ply] ) cmd+=(plistyad $x) ;;
-		$ARGUMENTOS[remove] || $ARGUMENTOS[rm] ) cmd+=(remove $x) ;;
-		$ARGUMENTOS[removeyad] || $ARGUMENTOS[rmy] ) cmd+=(removeyad) ;;
-		$ARGUMENTOS[Salve] || $ARGUMENTOS[S] ) cmd+=(save $x) ;;
-		$ARGUMENTOS[savefile] || $ARGUMENTOS[svf] ) cmd+=(save $x) ;;
-		$ARGUMENTOS[search] ) cmd+=(search) ;;
-		$ARGUMENTOS[selfile] || $ARGUMENTOS[sf] ) cmd+=(select.file) ;;
-		$ARGUMENTOS[stop] || $ARGUMENTOS[st] ) cmd+=(stop) ;;
-		$ARGUMENTOS[trackgo] || $ARGUMENTOS[tgo] ) cmd+=(trackgo) ;;
-		$ARGUMENTOS[trackget] || $ARGUMENTOS[tget] ) cmd+=(trackget) ;;
-		$ARGUMENTOS[track] || $ARGUMENTOS[t] ) cmd+=(track $x) ;;
-		$ARGUMENTOS[title] || $ARGUMENTOS[tt] ) cmd+=(loaded title $x) ;;
-		$ARGUMENTOS[titlen] || $ARGUMENTOS[tn] ) cmd+=("titleN" "$x") ;;
-		$ARGUMENTOS[url] || $ARGUMENTOS[u] ) cmd+=("loaded" "url" "$x") ;;
-		$ARGUMENTOS[vol] || $ARGUMENTOS[v] ) cmd+=(vol $x) ;;
-		$ARGUMENTOS[xclip] || $ARGUMENTOS[x] ) clip=$(xclip -sel clipboard -o) ;;
-		$ARGUMENTOS[cmd] ) cmd+=(${(s: :)x}) ;;
-	esac
-}
+
+[[ -n $cmd ]] && cmd+=(${(s: :)cmd};)
+[[ -n $console ]] && cmd+=(console;)
+[[ -n ${controls:-$c} ]] && cmd+=(controls;)
+[[ -n ${controlsr:-$cr} ]] && cmd+=(controlsr;)
+[[ -n ${format:-$fmt} ]] && cmd+=(format;)
+[[ -n $formatgo || -n $fmtgo ]] && cmd+=(formatgo ${formatgo:-$fmtgo};)
+[[ -n ${getthumb:-$gt} ]] && cmd+=(get.thumb;)
+[[ -n ${getsocks:-$gs} ]] && cmd+=(get.socks;)
+[[ -n ${help:-$h} ]] && cmd+=(help;)
+[[ -n $indice ]] && cmd+=(indice.selected $indice;)
+[[ -n $mpd ]] && cmd+=(mpd $mpd;)
+[[ -n $next ]] && cmd+=(next;)
+[[ -n $pause ]] && cmd+=(pause.toggle;)
+[[ -n ${playlist:-$pl} ]] && cmd+=(pl;)
+[[ -n ${playlistrofi:-$plr} ]] && cmd+=(plistrofi;)
+[[ -n ${playlistyad:-$ply} ]] && cmd+=(plistyad;)
+[[ -n $prev ]] && cmd+=(prev;)
+[[ -n ${polybar:-$pb} ]] && cmd+=(poly.title;)
+[[ -n ${save:-$sv} ]] && cmd+=(save;)
+[[ -n ${search:-$sc} ]] && cmd+=(search;)
+[[ -n ${saveas:-$sas} ]] && cmd+=(save $saveas;)
+[[ -n ${selectfile:-$sf} ]] && cmd+=(select.file;)
+[[ -n $sock || -n $s ]] && 
+    {
+        [[ -n $sock ]] && x=$sock || x=$s
+        declare -x sock="/tmp/mpvsocket$x"
+        declare -x mpurls="/tmp/mpurls$x"
+        declare -x mpurlsold="/tmp/mpurlsold$x"
+        declare -x mptitles="/tmp/mptitles$x"
+        declare -x mplistyad="/tmp/plistyad$x"
+        declare -x tmpcod="/tmp/mpcod$x"
+        declare -x mpid="/tmp/mpid$x"        
+    }
+[[ -n $sourcefile || -n $sfile ]] && cmd+=(source.file ${sourcefile:-$sfile};)
+[[ -n $stop ]] && cmd+=(stop;)
+[[ -n $remove || -n $rm ]] && cmd+=(remove ${remove:-$rm};)
+[[ -n $track ]] && cmd+=(track $track;)
+[[ -n $trackget || -n $tget ]] && cmd+=(trackget;)
+[[ -n $titlen || -n $tn ]] && cmd+=(;titleN ${titlen:-$tn};)
+[[ -n $urln || -n $un ]] && cmd+=(filenameN ${urln:-$un};)
+[[ -n $vol || -n $v ]] && cmd+=(vol ${vol:-$v};)
+[[ -n $xclip || -n $x ]] && clip="$(xclip -selection clipboard -o)"
 # Confirma se a solicitaçao de comando é a requisição de informações sobre os socks abertos, caso seja não atribui temp files a essa solicitação:
 if [[ ! $cmd =~ "get.socks" ]]; then
-	[[ -z $sock ]] && declare -x sock=/tmp/mpvsocketDefault
-	[[ -z $mpurls ]] && declare -x mpurls=/tmp/mpurlsDefault
-	[[ -z $mpurlsold ]] && declare -x mpurlsold=/tmp/mpurlsoldDefault
-	[[ -z $mptitles ]] && declare -x mptitles=/tmp/mptitlesDefault
-	[[ -z $mplistyad ]] && declare -x mplistyad=/tmp/plistyadDefault
-	[[ -z $tmpcod ]] && declare -x tmpcod="/tmp/mpcodDefault"
-	[[ -z $mpid ]] && declare -x mpid="/tmp/mpidDefault"
+	[[ -z $sock ]] && sock=/tmp/mpvsocketDefault
+	[[ -z $mpurls ]] && mpurls=/tmp/mpurlsDefault
+	[[ -z $mpurlsold ]] && mpurlsold=/tmp/mpurlsoldDefault
+	[[ -z $mptitles ]] && mptitles=/tmp/mptitlesDefault
+	[[ -z $mplistyad ]] && mplistyad=/tmp/plistyadDefault
+	[[ -z $tmpcod ]] && tmpcod="/tmp/mpcodDefault"
+	[[ -z $mpid ]] && mpid="/tmp/mpidDefault"
 else
 	get.socks || print "Não há socks ativos!"
 	exit 0
 fi
 # Valida os argumentos soltos que podem ser arquivos ou urls para reprodução e atribui ao array correto para execução:
-for arg in $@
+for arg in $urls
 {
 	if [[ -f $arg ]]; then
 		if [[ $arg =~ '.m3u$' ]]; then
@@ -156,18 +138,17 @@ fi
 if [[ -n $clip ]]; then
 	case $clip in
 		https://* ) add "$clip";mp -mpd start;;
-		http://* ) add "$clip";mp -mpd start;;
-		* ) <<< "Não foi possível resolver '"$clip"'" ;;
+		* ) printf '%s\n' "Não foi possível resolver '"$clip"'" ;;
 	esac
 	unset clip
 fi
 # Valida se há comandos a serem executados e os executa:
 if [[ -n $cmd ]]; then
-	$cmd[@]
+    $cmd
 fi
 # Finaliza e verifica se o sock usado na chamada do programa está ativo, estando ativo, apenas encerra a chamada, se não limpa os temp files alocados para o sock:
 if sock.ativo; then
 	exit 0
 else
-	rm $sock $mpurls $mpurlsold $mptitles $mplistyad $tmpcod $mpid /tmp/thumb.jpg 2>/dev/null
+	rm $sock $mpurls $mpurlsold $mptitles $mplistyad $tmpcod $mpid /tmp/mplog /tmp/thumb.jpg 2>/tmp/null
 fi

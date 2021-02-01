@@ -5,26 +5,23 @@ mp -> media player with mpv
 mp é um controle remoto do mpv que permite gerenciar mais de uma sessão por vez por meio dos sockets criados, permite salvar playlists de vídeos do youtube por exemplo, ou de arquivos locais em .m3u, fornece por meio do rofi ou yad um controle para o mpv quando executar arquivos de aúdio (onde a janela do mpv por padrão será escondida) e uma playlist em yad, rofi e terminal, há também um módulo para polybar via IPC.
 
 ## Dependências:
-<!-- * zsh -> não precisa ser o shell default do user
-* allopts -> (incluso)
-* mpv -> +youtube-dl para reproduzir videos do youtube
-* yad -> para seleção de arquivos fora do terminal
-* rofi -> para listar playlist e ter um painel de controle
-* socat -> para comunicação com os sockets -->
-Itens marcados são necessários:
+Itens marcados são necessários, os demais opcionais mas limitando o usabilidade:
 
-- [x] zsh
-- [x] allopts
-- [x] mpv
-- [x] socat
-- [x] yad
-- [x] rofi
+- [x] zsh - Não precisa ser o shell default do user;
+- [x] mpv - Requerido;
+- [x] socat - Requerido para escrever no socket do mpv;
+- [x] youtube-dl - Requerido para reproduçao de vídeos do youtube e obtenção de thumbs;
+- [ ] yad - Opcional para ter uma caixa de diálog para seleção de arquivos fora do terminal e um controle em GTK do mp;
+- [ ] rofi - Opcional, para ter uma playlist em rofi e console que aceita algumas das funções do mp;
+- [ ] wget - Opcional, para obtenção das thumbs;
+- [ ] imagemagick (convert) - Opcional, para conversão de thumbs em formatos svg para jpg;
+- [ ] dunst (dunstify) - Opcional, para notificações;
+- [ ] polybar (polybar-msg) - Opcional, para implementar o modulo polybar;
 
 ## Configuração:
 
-* Copie e cole no seu **~/.config/mpv/mpv.conf**
+* Copie e cole no seu **~/.config/mpv/mpv.conf**, isso fará com que o mpv não encerre a sessão ao término da reprodução, possibilitando acrescentar arquivos para a execuçao na mesma sessão mesmo quando o player terminar de reproduzir o último arquivo carregado:
 ```
-input-ipc-server=/tmp/mpvsocketDefault
 idle=yes
 ```
 Dê permissão de execução ao script e coloque o diretório no seu PATH, caso use o bash como shell default, altere **~/.zshrc** por **~/.bashrc** no exemplo abaixo:
@@ -36,37 +33,29 @@ echo "# path para mp\nPATH=\$PATH:$PWD" >> ~/.zshrc
 ## Uso
 ```
 USO: 	
+mp --help | -h (Opções do terminal)
+mp --console | -console (Console em rofi modo comando com arugmentos que são requeridos nas mesmas opções via terminal - Requer Rofi)
+mp --controls | -c (Controle do MPV via internface gráfica em yad - Requer Yad)
+mp --select-file | -sf (Caixa de diálogo para seleção de arquivos, Requer Yad)
 
-mp [options] <files/urls>
-
-Options:
-
--bpl 	-basepl		- Atualiza a base de dados para playlists (terminal)
--bply 	-baseplyad	- Atualiza a base de dados para playlistyad *deprecate
--c 	-controls	- Abre controls em yad
--cr 	-controlsr	- Abre controls em rofi
--console		- Abre o modo console em rofi
--f 	-format		- Alterar format do video/áudio do yt (terminal, console e controlsr)
--gs 	-get-socks	- Verificar quais os nomes dos socks abertos (terminal)
--h 	-help		- Esse menu de ajuda (terminal)
--mpd			- start / stop - para iniciar ou parar o daemon (terminal e console)
--nx 	-next 		- Next track (terminal e console)
--p 	-pause 		- Toggle Pause/Play (terminal e console)
--pb 	-polybar 	- Label para módulo polybar
--pv 	-prev 		- Prev track (terminal e console)
--pl 	-plist 		- Playlist no terminal (terminal)
--plr 	-plistrofi 	- Playlist no rofi (terminal e console)
--ply 	-plistyad 	- PLaylist no yad *deprecate
--rm 	-remove 	- Remove a track informada (terminal e console).
--rmy 	-removeyad 	- Remove a track selecionada na playlist com yad
--S 	-Save 		- Salve a playlist atual - Requer yad
--svf 	-save-file 	- Salve a playlist com o nome informado (terminal e console)
--s 	-sock 		- Inicie o MP com o socket informado
--st 	-stop 		- Stop e clear playlist (terminal e console)
--sf 	-selfile 	- Selecionar arquivos para execução - Requer yad
--t 	-track 		- Vá para a track informada
--tget 	-trackget 	- Informa qual a track em execução (terminal)
--tt 	-title 		- Retorna o título do arquivo/url 'N' solicitada (terminal)
--u 	-url 		- Retorna o nome do arquivo/url 'N' solicitada (terminal)
--v 	-vol 		- Seta o volume do mpv no valor informado
 ```
+
+## Módulo Polybar - Exemplo
+```
+[module/mpv]
+type = custom/ipc
+hook-0 = mp -pb &
+hook-1 = mp --polybar &
+initial = 1
+double-click-left = mp -sf &>/dev/null & 
+click-right = mp -plr &>/dev/null & 
+click-left = mp -console &> /dev/null &
+scroll-down = mp -next &
+scroll-up = mp -prev &
+```
+## O nome do módulo deve ser configurado também no arquivo mp.conf para refletir o mesmo nome e hook cadastrado no módulo no arquivo da polybar.
+```
+mpv.conf
+polymsg.command () polybar-msg hook mpv 1
+```
+#### Para não usar a polybar comente a opção acima no aruqivo mp.conf, o mesmo deve ser feito caso não queira o serviço de notificações, comente todas as opções que envolvam notificações.

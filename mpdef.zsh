@@ -2,10 +2,10 @@
 
 sock.ativo ()  #
 {
-	[[ -z $(loadeds url 2>/dev/null) ]] && return 1 || return 0
+	[[ -z $(loadedx) ]] && return 1 || return 0
 }
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
-get.socks ()
+get.socks () #
 {
 	print -l /tmp/mpvsock*
 } 2>/dev/null
@@ -59,7 +59,28 @@ search ()
 		fi
 	}
 
-
+    _select () #
+    {
+    	select sel in ${(f)"$(main $parms)"}; do
+    		[[ -n $sel ]] && { add "${${(s: :)sel}[-2]}"; mp -mpd start } || break
+    	done
+    	printf '%s\n' "continuar com a mesma pesquisa? [s/n]:" 
+    	read select_continue
+    	while true; do
+        	if [[ $select_continue == "s" || $select_continue == "S" ]]; then
+        	    clear
+        	    _select
+            elif [[ $select_continue == "n" || $select_continue == "N" ]]; then
+                break
+                return 0
+            else
+                printf '%s\n' "E necessario informar s|S para continuar ou n|N para sair da pesquisa atual"
+                printf '%s\n' "continuar com a mesma pesquisa? [s/n]:" 
+                read select_continue
+                continue
+            fi
+        done
+    }
 	unset qt_return
 	custom_return="false"
 	typeset -a parms
@@ -68,9 +89,9 @@ search ()
 	read parms
 	print "Return -> "
 	read qt_return
-	select sel in ${(f)"$(main $parms)"}; do
-		[[ -n $sel ]] && { add "${${(s: :)sel}[-2]}" } || break
-	done
+	_select
+	#base_search="$(main $parms)"
+	
 	exit 0
 }
 
@@ -85,7 +106,7 @@ format.url () #Argumentos
 	if [[ "$url" =~ "https://www.youtube.com/playlist?|'https://www.youtube.com.*start_radio'" ]]; then
 		declare -x format="best"
 		declare -x new_class="youtube"
-		elif [[ "$url" =~ "painelcode.me" ]]; then
+	elif [[ "$url" =~ "painelcode.me" ]]; then
 		declare -x format="best"
 		declare -x new_class="iptv"
 	else
@@ -115,129 +136,35 @@ format.url () #Argumentos
 				|awk '{print $1,$2,$3}'\
 				|sed -E 's/ |$/\|/g');;
 		esac
-		declare -x format=$(yad --list \
+
+		format=$(yad --list \
 		--columns=3 --column "Format Code" --column "Extension" --column "Resolution/Audio Only" \
 		--button="BEST":"mp play.best" \
 		--title "Opções :" --selectable-labels --search-column=2 --search-column=3 --regex-search \
 		--text-align=center --geometry 400x320 --borders=5 ${(s:|:)base} |cut -d'|' -f1|grep -Ev '^$')
+		
 		[[ -z $format ]] && exit 0
 	fi
 }
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 
-loadeds ()
-{
-	unset url title id
-
-	plistCarregada="$(playlist)"
-
-	<<< $plistCarregada| sed 's/,/\n/g'|grep -q '"title":' && \
-		{
-			for x in ${(f)"$(grep -Ev '^$|error:sucess|current:true|playing:true|id:|title:' <<< "$(sed 's/{\|}\|\[\|\].*\|\"//g;s/,/\n/g;s/data://g;s/filename://g' <<< "$plistCarregada")")"}
-			{
-				url+=("$x")
-			}
-			for x in ${(f)"$(grep -Ev '^$|error:sucess|current:true|playing:true|id:|filename:' <<< "$(sed 's/{\|}\|\[\|\].*\|\"//g;s/,/\n/g;s/data://g;s/title://g' <<< "$plistCarregada")")"}
-			{
-				title+=("$x")
-			}
-			[[ $#url[@] -ne $#title[@] ]] && \
-				{
-					for i in {$(($#url[@] - ($#url[@] - $#title[@])))..$#url[@]}
-					{
-						[[ -z "$(sed -n ''$i'p' /tmp/mptitlesDefault)" ]] && title+=("$(sed -n ''$i'p' /tmp/mptitlesDefault)") || title+=("null")
-					}
-				}
-		} || \
-			{
-				control=1
-				for x in ${(f)"$(grep -Ev '^$|error:sucess|current:true|playing:true|id:|title:' <<< "$(sed 's/{\|}\|\[\|\].*\|\"//g;s/,/\n/g;s/data://g;s/filename://g' <<< "$plistCarregada")")"}
-				{
-					url+=("$x")
-					titlemptitles=$(sed -n ''$control'p' $mptitles)
-					[[ -z $titlemptitles ]] && title+=("null") || title+=("$titlemptitles")
-					control=$((control+1))
-				}
-			}
-	[[ $# -gt 1 ]] && \
-		{
-			case $1 in
-				url* )
-					print -l $url |sed -n ''$2'p';;
-				title* )
-					print -l $title |sed -n ''$2'p';;
-			esac
-		} || \
-			{
-				case $1 in
-					url )
-						print -l $url;;
-					title )
-						print -l $title;;
-				esac
-			}
-}
 loadedx ()
+{ 
+	local base=(${(f)"$(playlist |sed 's/'}','{'/\n/g;s/\]\|\[\|{\|}//g;s/,\"request_id".*//g;s/,\"current\":true\|,\"playing\":true//g;s/\"data\":\|\"filename\":\|\"title\":\|\"id\"://g;s/\",/\"|/g;s/\"//g'| sed 's/|[[:digit:]].*//g')"})
+	if [[ -z $@ ]];then
+		unset control
+		for media in $base[@]
+		{
+			(( control = control + 1 ))
+			print "$control|$media"
+		}
+	else
+		print "$@|$base[$@]"
+	fi
+}
+
+source.file ()
 {
-  # grep -Ev 'request_id|error":' <<< $(sed -E 's/,/\n/g;s/\{\"filename\"\://g;s/\"title\"\://g;s/\}//g;s/\]//g' /tmp/playlist)
-	case $@ in
-		url.iptv )
-			playlist \
-			|sed -E 's/\}\,\{/\}\n\{/g;s/\{|\}|\]|\[|"|request_id.*|error\:suc.*//g;s/current:true|playing:true|data://g;s/,title\:/\ntitle\:/g' \
-			|sed -E 's/,$|,,$|,,,$|,,,,$//g' \
-			|grep -Ev '^$|title:' \
-			|cut -d':' -f2- ;;
-		url.iptv* )
-			playlist \
-			|sed -E 's/\}\,\{/\}\n\{/g;s/\{|\}|\]|\[|"|request_id.*|error\:suc.*//g;s/current:true|playing:true|data://g;s/,title\:/\ntitle\:/g' \
-			|sed -E 's/,$|,,$|,,,$|,,,,$//g' \
-			|grep -Ev '^$|title:' \
-			|cut -d':' -f2- \
-			|sed -n ''$2'p' ;;
-		title.iptv )
-			playlist \
-			|sed -E 's/\}\,\{/\}\n\{/g;s/\{|\}|\]|\[|"|request_id.*|error\:suc.*//g;s/current:true|playing:true|data://g;s/,title\:/\ntitle\:/g' \
-			|sed -E 's/,$|,,$|,,,$|,,,,$//g' \
-			|grep -Ev '^$|filename:' \
-			|cut -d':' -f2- ;;
-		title.iptv* )
-			playlist \
-			|sed -E 's/\}\,\{/\}\n\{/g;s/\{|\}|\]|\[|"|request_id.*|error\:suc.*//g;s/current:true|playing:true|data://g;s/,title\:/\ntitle\:/g' \
-			|sed -E 's/,$|,,$|,,,$|,,,,$//g' \
-			|grep -Ev '^$|filename:' \
-			|cut -d':' -f2- \
-			|sed -n ''$2'p' ;;
-		url )
-			playlist \
-			|sed -E 's/\}\,\{/\}\n\{/g;s/\{|\}|\]|\[|"|request_id.*|error\:suc.*//g;s/current:true|playing:true|data://g;s/title\: /\ntitle\: /g' \
-			|sed -E 's/,$|,,$|,,,$|,,,,$//g' \
-			|grep -Ev '^$|title:' \
-			|sed 's/\,id\:.*//g' \
-			|sed 's/,,$//g' \
-			|cut -d':' -f2- ;;
-		url* )
-			playlist \
-			|sed -E 's/\}\,\{/\}\n\{/g;s/\{|\}|\]|\[|"|request_id.*|error\:suc.*//g;s/current:true|playing:true|data://g;s/title\: /\ntitle\: /g' \
-			|sed -E 's/,$|,,$|,,,$|,,,,$//g' \
-			|grep -Ev '^$|title:' \
-			|sed 's/\,id\:.*//g' \
-			|cut -d':' -f2- \
-			|sed 's/,,$//g' \
-			|sed -n ''$2'p' ;;
-		title )
-			playlist \
-			|sed -E 's/\}\,\{/\}\n\{/g;s/\{|\}|\]|\[|"|request_id.*|error\:suc.*//g;s/current:true|playing:true|data://g;s/title\: /\ntitle\: /g' \
-			|sed -E 's/,$|,,$|,,,$|,,,,$//g' \
-			|sed 's/\,id\:.*//g' \
-			|grep -Ev '^$|filename:' \
-			|cut -d':' -f2- ;;
-		title* )
-			playlist \
-			|sed -E 's/\}\,\{/\}\n\{/g;s/\{|\}|\]|\[|"|request_id.*|error\:suc.*//g;s/current:true|playing:true|data://g;s/title\: /\ntitle\: /g' \
-			|sed -E 's/,$|,,$|,,,$|,,,,$//g' \
-			|grep -Ev '^$|filename:' \
-			|cut -d':' -f2- \
-			|sed -n ''$2'p' \
-			|sed 's/\,id\:.*//g'  ;;
-	esac
+	add ${(f)"$(<$@)"}
+	mp -mpd start
 }

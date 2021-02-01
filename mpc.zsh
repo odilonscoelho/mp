@@ -1,6 +1,6 @@
 #!/bin/zsh
 # verificar pois pode exminir muitos comandos clear, atualmente usado só em local file 'lfs'.
-add ()
+add () #
 {
 	if sock.ativo; then
 		print "add"
@@ -16,7 +16,7 @@ add ()
 	fi
 }
 
-add.yad ()
+add.yad () #
 {
 	if sock.ativo; then
 		# dstfy "YADs requisitado"
@@ -65,7 +65,7 @@ filename ()
 format ()
 {
 	if [[ -z $format ]]; then
-		url="$(loadeds url $(trackget))"
+		url="$(print ${${(s:|:)$(mp -cmd "loadedx $(trackget)")}[2]})"
 		format.url
 		echo "set ytdl-format $format" |socat - $sock
 		reload
@@ -75,7 +75,13 @@ format ()
 	fi
 }
 
-commands ()
+formatgo ()
+{
+    format=$@
+    format
+}
+
+commands () #
 {
 	echo '{ "command": ["get_property", "command-list"], "request_id": 0}' |socat - $sock |sed -E 's/\{*:|,.*//'
 }
@@ -90,13 +96,13 @@ stop ()
 	echo 'stop' |socat - $sock #Funcional
 	rm -f $sock $mpurls $mpurlsold $mptitles $mplistyad $tmpcod
 	kill $(< $mpid)
-	poly.title
-	# [[ -n "$(print /tmp/mpvsocket*)" ]] && return 0 || pkill mpv
+	polymsg.command &>/dev/null
 }
 
 trackgo () #
 {
 	< $tmpcod |read cod
+	# cod=$@
 	echo '{ "command": ["set_property", "playlist-pos-1", '"$cod"'], "request_id": 0}' |socat - $sock
 }
 
@@ -142,11 +148,15 @@ positionget ()
 remove ()
 {
 	trackremoved="$@"
-	trackremovedyad1="$(( $trackremoved * 2 ))"
-	trackremovedyad2="$(( $trackremovedyad1 - 1 ))"
+	get.thumb $@ &
+	icon=""
 	dstfy "$trackremoved Removed"
 	echo "playlist-remove $(( $trackremoved - 1 ))" |socat - $sock #funcional
-	sed -i $trackremoved'd' $mptitles
+	sed -i ''$trackremoved''d $mpurls
+	for (( line=$trackremoved; line<=$(wc -l < $mpurls); line++ ))
+	{
+		sed -i 's/'${${(s:|:)line}[1]}'/'$((${${(s:|:)line}[1]}-1))'/g' $mpurls
+	}
 }
 
 removeyad () #Argumentos
@@ -168,7 +178,7 @@ vol ()
 	echo '{ "command": ["set_property", "volume", '"$@"'], "request_id": 0}' |socat - $sock #volume Funcional
 }
 
-playlist ()
+playlist () #
 {
 	echo '{ "command": ["get_property", "playlist"], "request_id": 0}' |socat - $sock #2>/dev/null
 }
@@ -188,8 +198,10 @@ change () #
 }
 teste () #
 {
-	# echo '{ "command": ["get_property", "metadata/list/'$@'/value"], "reqsuest_id": 0}' |socat - $sock
 	echo '{ "command": ["get_property", "metadata/by-key/1"], "reqsuest_id": 0}' |socat - $sock
 }
-# track-list/N/albumart
-# |socat - $sock |sed -E 's/.*data":|,".*|"//g' #titulo atual Funcional usado na polybar
+
+xclip_clipboard ()
+{
+    mp -x
+}
