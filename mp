@@ -144,8 +144,8 @@ fi
 [[ -n ${playlist:=$pl} ]] && pl 2> /dev/null
 [[ -n ${playlistrofi:=$plr} ]] && plistrofi 2> /dev/null
 [[ -n ${playlistyad:=$ply} ]] && plistyad 2> /dev/null
-[[ -n ${plistiptv:=pli} ]] && plistiptv 2>/dev/null
-[[ -n $iptv ]] && { add "$iptv"; loadedx > $mpurls; dunstify -t 5000 "MP" "Playlist concluída" }
+[[ -n ${plistiptv:=$pli} ]] && plistiptv 2>/dev/null
+[[ -n $iptv ]] && add "$iptv" 2>/dev/null
 # Finaliza e verifica se o sock usado na chamada do programa está ativo, estando ativo, apenas encerra a chamada, se não limpa os temp files alocados para o sock:
 if sock.ativo; then
 	exit 0

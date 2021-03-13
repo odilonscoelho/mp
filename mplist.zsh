@@ -157,7 +157,7 @@ plistiptv ()
 			printf '%s %s' "${${(s:|:)line}[1]}" "$title ;"
 		done < $mpurls
 	}
-
+    [[ -e $mpurls ]] || loadedx > $mpurls
     list="$(_genBase)"
 	print "$list" | \
 			rofi -dmenu -sep ";" -line-padding 2 -padding 10 -font "M+ 2m 18" \
