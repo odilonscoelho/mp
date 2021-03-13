@@ -158,25 +158,13 @@ plistiptv ()
 		done < $mpurls
 	}
 
-	_window () #
-	{
-		while true; do
-			selRow=$(($(trackget)-1))
-			optn=$(echo "$list" | \
-			rofi -dmenu -sep ";" -line-padding 2 -padding 10 -font "M+ 2m 18" \
-			-selected-row $selRow -width 15 -xoffset -25 -location 3 -theme-str '#listview { layout: vertical; }' \
-			-Theme-str ''$ThemeCustom'' -no-click-to-exit -yoffset 84 -normal-window -window-title "MP Plist")
-			[[ -n $optn ]] && { track $(cut -d '|' -f 1 <<< $optn) && continue } || exit 0
-		done
-	}
-	
     list="$(_genBase)"
 	print "$list" | \
 			rofi -dmenu -sep ";" -line-padding 2 -padding 10 -font "M+ 2m 18" \
 			-selected-row $selRow -width 15 -xoffset -25 -location 3 -theme-str '#listview { layout: vertical; }' \
-			-Theme-str ''$ThemeCustom'' -no-click-to-exit -yoffset 84 -normal-window -window-title "MP Plist"
+			-Theme-str ''$ThemeCustom'' -no-click-to-exit -yoffset 84 -normal-window -window-title "MP Plist" |read optn
 
-	[[ -n $optn ]] && { track $(cut -d '|' -f 1 <<< $optn) && continue } || exit 0
+	[[ -n $optn ]] && track $(cut -d '|' -f 1 <<< $optn) || exit 0
  
 }
 
