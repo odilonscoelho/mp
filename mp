@@ -15,7 +15,7 @@ fi
 # Array para opções que recebem argumentos 
 args=("-cmd" "--cmd" "-depur" "--depur" "--format-go" "-fmtgo" "--indice" "-indice" "--mpd" "-mpd" "--remove" "-rm" "--save-as" "-sas""-s" "--sock" "--source-file" "-sfile" "--track" "-track" "--title-n" "-tn" "--url-n" "-un" "--vol" "-v" "--iptv" "-iptv")
 # Array para opções que não recebem argumentos
-bool=("--controls" "-c" "--controlsr" "-cr" "--console" "-console" "--format" "-fmt" "--get-socks" "-gs" "--get-thumb" "-gt" "--help" "-h" "--next" "-next" "--pause" "-pause" "--playlist" "-pl" "--playlist-rofi" "-plr" "--playlist-yad" "-ply" "--prev" "-prev" "--polybar" "-pb" "--save" "-sv" "--search" "-search" "--select-file" "-sf" "--stop" "-stop" "--track-get" "-tget" "--title" "-title" "--xclip" "-x")
+bool=("--controls" "-c" "--controlsr" "-cr" "--console" "-console" "--format" "-fmt" "--get-socks" "-gs" "--get-thumb" "-gt" "--help" "-h" "--next" "-next" "--pause" "-pause" "--playlist" "-pl" "--playlist-rofi" "-plr" "--playlist-yad" "-ply" "--prev" "-prev" "--polybar" "-pb" "--save" "-sv" "--search" "-search" "--select-file" "-sf" "--stop" "-stop" "--track-get" "-tget" "--title" "-title" "--xclip" "-x" "--plistiptv" "-pli")
 # Associação de parâmetros recebidos aos arrays, 
 # Cada possível parâmetro será salvo em uma variável
 # de mesmo nome do parâmetro, parâmetros que não
@@ -144,6 +144,7 @@ fi
 [[ -n ${playlist:=$pl} ]] && pl 2> /dev/null
 [[ -n ${playlistrofi:=$plr} ]] && plistrofi 2> /dev/null
 [[ -n ${playlistyad:=$ply} ]] && plistyad 2> /dev/null
+[[ -n ${plistiptv:=pli} ]] && plistiptv 2>/dev/null
 [[ -n $iptv ]] && { add "$iptv"; loadedx > $mpurls; dunstify -t 5000 "MP" "Playlist concluída" }
 # Finaliza e verifica se o sock usado na chamada do programa está ativo, estando ativo, apenas encerra a chamada, se não limpa os temp files alocados para o sock:
 if sock.ativo; then
