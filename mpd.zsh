@@ -3,7 +3,7 @@ mpd.pids ()  #
 {
 	case $@ in
 		MPD )
-			ps aux|grep '[m]p \-mpd' |awk '{print $2}' ;;
+			ps aux |grep -E '\/bin\/zsh.*mp$' | awk '{print $2}';;
 		BASEPL )
 			ps aux|grep '[m]p basepl force' |awk '{print $2}' ;;
 	esac
@@ -13,43 +13,22 @@ mpd ()
 	case $@ in
 		start )
 			interval
-			val "MPD";;
+			if [[ -e /tmp/mpid ]]; then
+    		    return 0
+    		else
+                statusx="start"
+    			start & 
+    			print "$!" > /tmp/mpid
+			fi;;
+			# val "MPD";;
 		stop )
+            kill $(< /tmp/mpid)
 			kill "${(f)$(mpd.pids 'MPD')[@]}";;
 		* )
 			msg "Options:
 			mp -mpd start
 			mp -mpd stop";;
 	esac
-}
-val ()  #
-{
-	case ${#$(get.socks)} in
-		0 ) limit=3 ;;
-		1 ) limit=3 ;;
-		2 ) limit=5 ;;
-		3 ) limit=6 ;;
-		4 ) limit=7 ;;
-	esac
-
-	if [[ $(wc -l <<< `mpd.pids "$@"`) -le $limit ]];then
-		case $@ in
-			MPD )
-				statusx="start"
-				start &>/tmp/mplog &
-				exit 0;;
-			BASEPL )
-				return 0;;
-		esac
-	else
-		case $@ in
-			MPD )
-				exit 0 ;;
-			BASEPL )
-				dstfy "$@ RECHAÇADA!!!"
-				return 1 ;;
-		esac
-	fi
 }
 start ()  #
 {
@@ -63,10 +42,16 @@ start ()  #
 					polymsg.command &>/dev/null
 					icon=""
 					dstfy "mp sock stoped"
+					rm -f /tmp/mpid 2>/dev/null
 					break
 				}
 	done
 	exit 0
+}
+
+backend.m3u ()
+{
+    loadedx > $mpurls 
 }
 
 backend ()  #
@@ -76,25 +61,35 @@ backend ()  #
 			statusx="running"
 			current_track=$(trackget)
 			number_of_tracks=$(tracks)
-			basepl force
-			scopeold=$(playlist)
+            #[[ -n $m3us ]] && {  backend.m3u } || { basepl force }
+            basepl force
+			scopeold=$(playlist |xargs -0)
 			[[ $polymsg == "true" ]] && polymsg.command &>/dev/null
 			[[ $get_thumb == "true" ]] && get.thumb $current_track
 			[[ $polymsg == "true" ]] && polymsg.command &>/dev/null
 		else
-			scopenew=$(playlist)
+			scopenew=$(playlist |xargs -0)
 			if [[ $scopeold != $scopenew ]]; then
-				local current_track_new=$(trackget)
-				local number_of_tracks_new=$(tracks)
+				current_track_new=$(trackget)
+				number_of_tracks_new=$(tracks)
+				# Adicionou faixa:
 				if [[ $number_of_tracks -lt $number_of_tracks_new ]];then
 					basepl
 					number_of_tracks=$number_of_tracks_new
 			        [[ $polymsg == "true" ]] && polymsg.command &>/dev/null
-				elif [[ $current_track != $current_track_new ]];then
-					polybar-msg hook mpv 1 &>/dev/null
+			    # Removeu faixa:
+				elif [[ $number_of_tracks -gt $number_of_tracks_new ]];then
+				    basepl force
+   					current_track=$current_track_new
+   					number_of_tracks=$number_of_tracks_new
+                    [[ $polymsg == "true" ]] && polymsg.command &>/dev/null
+				# Apenas alterou a faixa em execução:
+				elif [[ $number_of_tracks -eq $number_of_tracks_new && $current_track != $current_track_new ]];then
+					[[ $polymsg == "true" ]] && polymsg.command &>/dev/null 
 					current_track=$current_track_new
 					[[ $get_thumb == "true" ]] && get.thumb $current_track
 			        [[ $polymsg == "true" ]] && polymsg.command &>/dev/null
+			    # O player foi pausado
 				elif [[ $(print $scopenew |sed 's/,/\n/g'|grep '"playing":true') ]];then
 					[[ $polymsg == "true" ]] && polymsg.command &>/dev/null
 				fi
@@ -102,14 +97,20 @@ backend ()  #
 			fi
 		fi
 	else
-		interval &&
-		if sock.ativo; then; backend; { [[ $polymsg == "true" ]] && polymsg.command &>/dev/null }; else; return 5; fi
+		interval
+		if sock.ativo; then
+		    backend
+        else
+		    polymsg.command &>/dev/null
+            return 5
+        fi
 	fi
 }
 
 basepl () #
 {
 	if [[ $@ == "force" ]]; then
+	    cp $mpurls $mpurlsold
 	    : > $mpurls
 	    for media in ${(f)"$(loadedx)"}
 	    {
@@ -124,12 +125,12 @@ basepl () #
 						elif [[ -e "~/$filename" || -e "$filename" && "$filename" =~ ".m3u" ]]; then
 							title=$(< "$filename" |sed -n '2p'|sed 's/.*\,\ //g;s/\..*$//g')
 						else
-							title="$(get.title "$filename")"
+						    { grep -q $filename $mpurlsold } && title=${${(s:|:)$(grep $filename $mpurlsold)}[3]} || title="$(get.title "$filename")"
 							[[ -z $title ]] && title=$(print "$filename" |sed 's/.*\///g;s/\///g;s/\..*$//g')
 						fi
 						print "$media|$title" >> $mpurls
 	    			}
-	    }	
+	    }
 	else
 		for (( i=$(( $number_of_tracks + 1 )); i<=$number_of_tracks_new; i++ ))
 		{					
@@ -137,18 +138,18 @@ basepl () #
 	    		{
 	    			loadedx $i >> $mpurls
 	    		} || \
-						{
-							filename=${${(s:|:)$(loadedx $i)}[2]}
-							if [[ -e "~/$filename" || -e "$filename" && ! "$filename" =~ ".m3u" ]]; then
-								title=$(echo "$filename" |sed 's/.*\///g;s/\///g;s/\..*$//g')
-							elif [[ -e "~/$filename" || -e "$filename" && "$filename" =~ ".m3u" ]]; then
-								title=$(< "$filename" |sed -n '2p'|sed 's/.*\,\ //g;s/\..*$//g')
-							else
-								title="$(get.title "$filename")"
-								[[ -z $title ]] && title=$(print "$filename" |sed 's/.*\///g;s/\///g;s/\..*$//g')
-							fi
-							print "$(loadedx $i)|$title" >> $mpurls
-						}
+                    {
+                        filename=${${(s:|:)$(loadedx $i)}[2]}
+                        if [[ -e "~/$filename" || -e "$filename" && ! "$filename" =~ ".m3u" ]]; then
+                            title=$(echo "$filename" |sed 's/.*\///g;s/\///g;s/\..*$//g')
+                        elif [[ -e "~/$filename" || -e "$filename" && "$filename" =~ ".m3u" ]]; then
+                            title=$(< "$filename" |sed -n '2p'|sed 's/.*\,\ //g;s/\..*$//g')
+                        else
+                            title="$(get.title "$filename")"
+                            [[ -z $title ]] && title=$(print "$filename" |sed 's/.*\///g;s/\///g;s/\..*$//g')
+                        fi
+                        print "$(loadedx $i)|$title" >> $mpurls
+                    }
 		}
 	fi
 }

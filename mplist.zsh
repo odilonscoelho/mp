@@ -119,7 +119,7 @@ plistrofi ()
 			rofi -dmenu -sep ";" -line-padding 2 -padding 10 \
 			-selected-row $selRow -width 15 -xoffset -25 -location 3 -theme-str '#listview { layout: vertical; }' \
 			-no-click-to-exit -yoffset 84 -normal-window -window-title "MP Plist")
-			[[ -n $optn ]] && { mp -track $(cut -d '|' -f 1 <<< $optn) && continue } || exit 0
+			[[ -n $optn ]] && { track $(cut -d '|' -f 1 <<< $optn) && continue } || exit 0
 		done
 	}
 	

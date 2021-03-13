@@ -1,8 +1,6 @@
 #!/bin/zsh
 save ()
 {
-	
-	# File="$(yad --text="Select files....$\_>" --file --save)"
 	[[ -z $@ ]] && { select.file save |read file } || file=$@
 	[[ -z $file ]] && msg "Operação cancelada ! PLaylist não Salva!"
 	[[ -d $file ]] && msg "Operação cancelada ! PLaylist não Salva! Foi selecionado apenas o diretório"
@@ -19,8 +17,8 @@ save ()
 select.file ()
 {
 	[[ -z $1 ]] && \
-		file="$(yad --separator=\! --text="Select files....$ _>" --file --multiple --geometry=600x800)" && \
-			[[ -n $file ]] && mp "$file" #url file &&
+		file="$(yad --separator=\! --text="Select files....$ _>" --file --multiple --geometry=600x800)"
+		[[ -n $file ]] && { add "${(s:!:)file}" ; mpd start }
 	[[ -n $1 ]] && yad --text="Select files....$\_>" --file --multiple --save
 }
 #--------------------------------------------------\---------------------------------------------------------------------------------------------------------------------------------------------------#
@@ -36,7 +34,7 @@ pause.toggle ()
 	else
 		echo '{ "command": ["set_property", "pause", true] }' |socat - $sock
 	fi
-	polybar-msg hook mpv 1
+	[[ $polymsg == "true" ]] && polymsg.command >/dev/null
 }
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 msg () #Argumentos
@@ -46,86 +44,40 @@ msg () #Argumentos
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 poly.title ()   #
 {
-	if [[ $WM == "RESOLVR" ]]; then
-		limitstr=15
-		limitlbl=60
-		if [[ ${#$(get.socks)} -gt 0 ]]; then
-			for x in $(get.socks)
-			{
-				sock=$x
-				if sock.ativo; then
-					title="$(title|sed 's/\..*$//g'|tail -c 80)"
-					if [[ $#title -gt $limitstr ]];then
-						title=$(printf %"$((limitstr-3))"s "$title...")
-					fi
-					title_formated='<span foreground="'$color4'" weight="bold" style="italic">'$title'</span>'
-					
-					if [[ $(playlist |sed 's/,/\n/g'|grep '"playing":true') ]]; then
-
-						artist="$(get.artist $(trackget))"
-
-						if [[ $#artist -gt $limitstr ]];then
-							artist=$(printf %"$((limitstr-3))"s "$artist...")
-						fi
-						
-						artist_formated='<span foreground="'$color1'" style="italic">'$artist'</span>'
-												
-						if [[ $(echo '{ "command": ["get_property", "pause"] }' |socat - $sock |grep 'true') ]];then
-							trck=$(trackget)
-							icon=" "
-							artist="$(get.artist $trck)"
-							statuS='<span foreground="'$color4'" weight="bold">'$icon'</span><span foreground="'$color1'" weight="bold">'$trck'</span>'
-							printf '%-'$((limitstr+70))'s %'$limitstr's %10s' "$title_formated," "$artist_formated" "$statuS"
-
-						else
-							trck=$(trackget)
-							icon=" "
-							artist="$(get.artist $trck)"
-							statuS='<span foreground="'$color4'" weight="bold">'$icon'</span><span foreground="'$color1'" weight="bold">'$trck'</span>'
-							printf '%-'$((limitstr+70))'s %'$limitstr's %10s' "$title_formated," "$artist_formated" "$statuS"
-						fi
-						
-					else
-						icon=" "
-						statuS='<span foreground="'$color4'" weight="bold">'$icon'</span><span foreground="'$color1'" weight="bold">'$trck'</span>'
-						printf '%'$((limitlbl/2))'s %10s' " ... " " $statuS "
-						continue
-					fi
-				fi
-			}
-		else
-			printf '%s %s' " ... " "   " #
-		fi
-	elif [[ $WM == "bspwm" || $WM == "qtile" ]]; then
-		if [[ ${#$(get.socks)} -gt 0 ]]; then
-			for x in $(get.socks)
-			{
-				sock=$x
-				if sock.ativo; then
-					if [[ $(playlist |sed 's/,/\n/g'|grep '"playing":true') ]]; then
-						if [[ $(echo '{ "command": ["get_property", "pause"] }' |socat - $sock |grep 'true') ]];then
-							trck=$(trackget)
-							printf '%80s %10s' "$(title|sed 's/\..*$//g'|tail -c 80), %{F#E78F8F}%{T5}$(get.artist $trck)%{T0}" "%{F$mprefixcolor}%{T7}   %{T0}%{F$color4}$trck "
-
-						else
-							trck=$(trackget)
-							printf '%80s %10s' "$(title|sed 's/\..*$//g'|tail -c 80), %{F#E78F8F}%{T5}$(get.artist $trck)%{T0}" "%{F$mprefixcolor}%{T7}   %{T0}%{F$color4}$trck "
-						fi
-					else
-						printf '%s %s' " ... " "%{T7}%{F$mprefixcolor}   %{T0}%{F$color4}$(tracks) "
-						continue
-					fi
-				fi
-			}
-		else
-			printf '%s %s' " ... " "%{T7}%{F$mprefixcolor}   %{T-}%{F-}" # 
-		fi
-	fi
+    local limit_title=20
+	local limit_artist=15
+    
+    # local trck=$(trackget)
+    local TITLE=$(title)
+    # local ARTTIST=$(get.artist $trck)
+    
+    local icon_playing=" "
+    local icon_stoped=" "
+    local icon_paused=" "
+    
+    if sock.ativo; then
+        trck=$(trackget)
+        ARTIST="$(get.artist $(trackget))"
+        if sock.ativo; then
+        	if [[ $(playlist |sed 's/,/\n/g'|grep '"playing":true') ]]; then
+        		if [[ $(echo '{ "command": ["get_property", "pause"] }' |socat - $sock |grep 'true') ]];then
+        			printf '%'$limit_title's %'$limit_artist's' "${TITLE[1,$limit_title]},%{F#E78F8F}%{T5} ${ARTIST[1,$limit_artist]}%{T0}" "%{F$mprefixcolor}%{T7}   %{T0}%{F$color4}$trck "
+        		else
+        			trck=$(trackget)
+        			printf '%'$limit_title's %'$limit_artist's' "${TITLE[1,$limit_title]},%{F#E78F8F}%{T5} ${ARTIST[1,$limit_artist]}%{T0}" "%{F$mprefixcolor}%{T7}   %{T0}%{F$color4}$trck "
+        		fi
+        	else
+        		printf '%s %s' " ... " "%{T7}%{F$mprefixcolor}   %{T0}%{F$color4}$(tracks) "
+        	fi
+        fi
+    else
+        printf '%s %s' " ... " "%{T7}%{F$mprefixcolor}   %{T-}%{F-}"
+    fi
 }
 dstfy ()   #
 {
 	[[ -z $icon ]] && { icon="${${(f)"$(print -l $HOME/.icons/${${(s:=:)${(f)"$(< ~/.config/gtk-3.0/settings.ini)"}[3]}[2]}/apps/scalable/mpv*)"}[1]}" }
-	[[ -z $@ ]] && dunstify -t 5000 -i $icon "$(title)" || dunstify -t 5000 -i $icon "$@"
+	[[ -z $@ ]] && dunstify -t 10000 -i $icon "$(title)" || dunstify -t 5000 -i $icon "$@"
 }
 
 help () #
@@ -200,59 +152,70 @@ get.artist () #
 
 get.thumb () 
 {
+    _gt ()
+    {
+    	[[ $Online == "true" ]] && \
+    		{ search_online=$(youtube-dl --get-thumbnail "$url" 2>/dev/null) } || \
+    			{ [[ $artist != acervo ]] && { search_online=$(youtube-dl --get-thumbnail "$engine_search:$artist $title" 2>/dev/null) } || { search_online="" } }
+        
+    	[[ -z $search_online ]] && { icon="" } || \
+    			{
+    				[[ $search_online =~ .jpg ]] && \
+    					{
+    						[[ $search_online =~ .jpg$ ]] && \
+    							{
+    								wget --quiet $search_online --output-document /tmp/thumb.jpg
+    							} || \
+    								{
+    									search_online=$(sed 's/\.jpg?.*/.jpg/' <<< $search_online)
+    									wget --quiet $search_online --output-document /tmp/thumb.jpg
+    								}
+    					} || \
+    						{
+    							wget --quiet $search_online --output-document /tmp/thumb.webp
+    							convert /tmp/thumb.webp /tmp/thumb.jpg
+    							rm /tmp/thumb.webp
+    						}
+    				icon=/tmp/thumb.jpg
+    			}        
+    }
+    unset infom_album infom_genre infom_title infom_artist infom_Duration
 	url=${${(s:|:)$(loadedx $@)}[2]}
 	url=${url:-${${(s:|:)$(loadedx $(trackget))}[2]}}
 	engine_search=ytsearch
 	if [[ -e $url  ]];then
 		[[ "$(file $url)" =~ "MP4" ]] && \
 			{ 
-				ffmpegthumbnailer -i $url -o /tmp/thumb.png -s 246 -q 100
-				icon=/tmp/thumb.png
+				ffmpegthumbnailer -m -s0 -q10 -i $url -o /tmp/thumb.jpeg
+				icon=/tmp/thumb.jpeg
 				<<< $url | sed 's/.*\///g;s/\..*$//g' |read title
 				artist=$(get.artist)
-				dstfy "artist" "$title"
-				rm /tmp/thumb.png
+				duration="$(print 'scale=2;'$(duration)'' / 60 |bc |sed 's/\./:/' )"
+				dstfy "$(printf '%s\n' "$artist" "$title")" "Time : ${duration:-unknow}"
+				rm /tmp/thumb.jpeg
 				return 0
-			} || \ 
-				{ 
-					base=(${(f)"$(ffprobe "$@" 2>&1 | grep -E 'title.*|artist.*'|grep -v album |cut -d ':' -f2-)"})
-				}
-		if [[ -n $base ]]; then
-			[[ $#base -gt 1 ]] && { title=${base[1]}; artist=${base[2]} } || { title=$base; artist="$(get.artist)" }
-		else
-			<<< $url | sed 's/.*\///g;s/\..*$//g' |read title
-			artist="$(get.artist)"
-		fi
-		
-	else
-		sed -n $@'p' $mpurls |cut -d '|' -f 3 |read title
-		artist="$(get.artist)"
-	fi
-
-	[[ $Online == "true" ]] && \
-		{ search_online=$(youtube-dl --get-thumbnail "$url" 2>/dev/null) } || \
-			{ [[ $artist != acervo ]] && { search_online=$(youtube-dl --get-thumbnail "$engine_search:$artist $title" 2>/dev/null) } || { search_online="" } }
-
-	[[ -z $search_online ]] && { icon="" } || \
-			{
-				[[ $search_online =~ .jpg ]] && \
-					{
-						[[ $search_online =~ .jpg$ ]] && \
-							{
-								wget --quiet $search_online --output-document /tmp/thumb.jpg
-							} || \
-								{
-									search_online=$(sed 's/\.jpg?.*/.jpg/' <<< $search_online)
-									wget --quiet $search_online --output-document /tmp/thumb.jpg
-								}
-					} || \
-						{
-							wget --quiet $search_online --output-document /tmp/thumb.webp
-							convert /tmp/thumb.webp /tmp/thumb.jpg
-							rm /tmp/thumb.webp
-						}
-				icon=/tmp/thumb.jpg
 			}
-	dstfy "$artist" "$title"
-	rm /tmp/thumb.jpg
+			
+    	ffprobe "$url" 2>&1 |grep -E 'title|artist|album|genre|Duration'|sed -E 's/ *\:/\=/1;s/\= /="/;s/\..*//;s/^ *//g;s/$/"/;s/^/infom_/' > /tmp/mpimportinfo
+    	
+        . /tmp/mpimportinfo
+        
+        [[ -z $infom_artist || $infom_artist == $infom_title ]] && artist="$(get.artist)" || artist="$infom_artist"
+        [[ -z $infom_album ]] && album="Unknow" || album="$infom_album"
+        [[ -z $infom_genre ]] && genre="Unknow" || genre="$infom_genre"
+        [[ -z $infom_Duration ]] && duration="$(print 'scale=2;'$(duration)'' / 60 |bc |sed 's/\./:/' )" || duration="${infom_Duration//00:/}"
+        [[ -z $infom_title ]] && title="$(sed 's/.*\///g;s/\..*$//g' <<< $url)" || title="$infom_title"
+        
+        _gt			  
+        dstfy "$(printf '%s\n' "$artist" "$title")" "$(printf '%s\n' "Album : $album"   "Genre : $genre" "Time : $duration")"
+    	rm /tmp/thumb.jpg
+    	rm /tmp/mpimportinfo
+	else
+	    sed -n $@'p' $mpurls |cut -d '|' -f 3 |read title
+		artist="$(get.artist)"
+		duration=$(youtube-dl --get-duration "ytsearch:"$url"")
+		_gt			  
+        dstfy "$(printf '%s\n' "$artist" "$title")" "Time : $duration"
+    	rm /tmp/thumb.jpg
+	fi
 }

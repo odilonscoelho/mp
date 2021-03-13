@@ -1,9 +1,9 @@
 #!/bin/zsh
-
 sock.ativo ()  #
 {
 	[[ -z $(loadedx) ]] && return 1 || return 0
-}
+    #[[ -e /tmp/mpid ]] && return 1 || return 0
+} 2>/dev/null
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 get.socks () #
 {
@@ -17,19 +17,14 @@ get.title () #
 
 search ()
 {
-
 	main ()  #
 	{
-
 		base="$(youtube-dl --get-title --get-id --get-duration "ytsearch$qt_return:"$@"" |xargs -0)"
-
 		control=1
 		controllerT=1
 		controllerI=1
 		controllerD=1
-
 		typeset -A Titles IDs Durations
-
 		for element in ${${(f)base}[@]}
 		{
 			case $control in
@@ -47,7 +42,6 @@ search ()
 					controllerD=$(($controllerD+1)) ;;
 			esac
 		}
-
 		if [[ $#Titles[@] -gt 1 ]]; then
 			for (( i = 1; i <= $#Titles[@]; i++ )); do
 			 	[[ $(($i%2)) -eq 0 ]] && \
@@ -58,11 +52,10 @@ search ()
 			 echo "$(tput sgr0; tput setaf 7; tput setab 0; tput bold;) $(printf '%-'$(($(($(($COLUMNS-8))/4))*2))'s' "${Titles[1][1,$(($(($(($COLUMNS-8))/4))*2))]}") $(printf '%8s' "$Durations") $(tput sgr0; tput setaf 12; tput setab 0;) $(printf '%'$(($(($COLUMNS-8))/4))'s' "${IDs}") $(tput sgr0;)"
 		fi
 	}
-
     _select () #
     {
     	select sel in ${(f)"$(main $parms)"}; do
-    		[[ -n $sel ]] && { add "${${(s: :)sel}[-2]}"; mp -mpd start } || break
+    		[[ -n $sel ]] && { add "${${(s: :)sel}[-2]}"; mpd start & } || break
     	done
     	printf '%s\n' "continuar com a mesma pesquisa? [s/n]:" 
     	read select_continue
@@ -84,14 +77,11 @@ search ()
 	unset qt_return
 	custom_return="false"
 	typeset -a parms
-
 	print "Search -> "
 	read parms
 	print "Return -> "
 	read qt_return
 	_select
-	#base_search="$(main $parms)"
-	
 	exit 0
 }
 
@@ -150,7 +140,7 @@ format.url () #Argumentos
 
 loadedx ()
 { 
-	local base=(${(f)"$(playlist |sed 's/'}','{'/\n/g;s/\]\|\[\|{\|}//g;s/,\"request_id".*//g;s/,\"current\":true\|,\"playing\":true//g;s/\"data\":\|\"filename\":\|\"title\":\|\"id\"://g;s/\",/\"|/g;s/\"//g'| sed 's/|[[:digit:]].*//g')"})
+	base=(${(f)"$(playlist |sed 's/'}','{'/\n/g;s/\]\|\[\|{\|}//g;s/,\"request_id".*//g;s/,\"current\":true\|,\"playing\":true//g;s/\"data\":\|\"filename\":\|\"title\":\|\"id\"://g;s/\",/\"|/g;s/\"//g'| sed 's/|[[:digit:]].*//g')"})
 	if [[ -z $@ ]];then
 		unset control
 		for media in $base[@]
@@ -166,5 +156,5 @@ loadedx ()
 source.file ()
 {
 	add ${(f)"$(<$@)"}
-	mp -mpd start
+	mpd start &
 }
